@@ -1,0 +1,9 @@
+<h2>Confirm Account</h2>
+<form (ngSubmit)="onSubmit()">
+  <input type="text" placeholder="Confirmation Code" required />
+  <button type="submit">Confirm</button>
+  <p>
+    Already have an account?
+    <a routerLink="/auth/login">Login</a>
+  </p>
+</form>
