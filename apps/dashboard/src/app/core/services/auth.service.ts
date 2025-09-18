@@ -1,10 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap, throwError } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { Observable, throwError } from 'rxjs';
+import { tap, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment.local';
-import { LoginUserDto } from 'libs/data/src/lib/dto/login-user.dto';
-import { RegisterUserDto } from 'libs/data/src/lib/dto/register-user.dto';
+import { LoginUserDto } from 'libs/dto/login-user.dto';
+import { RegisterUserDto } from 'libs/data/dto/register-user.dto';
+import { UserDto } from 'libs/data/src/lib/dto/user.dto';
+import { Store } from '@ngrx/store';
+import { loginSuccess, logout, AuthState } from '../state/auth.reducer';
 
 @Injectable({
   providedIn: 'root'
@@ -12,36 +15,30 @@ import { RegisterUserDto } from 'libs/data/src/lib/dto/register-user.dto';
 export class AuthService {
   private apiUrl = `${environment.apiUrl}/auth`;
   private tokenKey = 'auth_token';
-
-  private isAuthenticatedSubject = new BehaviorSubject<boolean>(this.hasToken());
-  isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
-
   private http: HttpClient;
+  private store: Store<AuthState>;
 
   constructor() {
     this.http = inject(HttpClient);
+    this.store = inject(Store);
   }
 
-  login(credentials: LoginUserDto): Observable<{ access_token: string }> {
-    return this.http.post<{ access_token: string }>(`${this.apiUrl}/login`, credentials).pipe(
+  login(credentials: LoginUserDto): Observable<{ access_token: string, user: UserDto }> {
+    return this.http.post<{ access_token: string, user: UserDto }>(`${this.apiUrl}/login`, credentials).pipe(
       tap(res => {
         this.setToken(res.access_token);
+        this.store.dispatch(loginSuccess(res.user));
       }),
       catchError(this.handleError)
     );
   }
 
-  register(userData: RegisterUserDto): Observable<{ access_token: string }> {
-    return this.http.post<{ access_token: string }>(`${this.apiUrl}/register`, userData).pipe(
-      tap(res => {
-        if (res.access_token) {
-          this.setToken(res.access_token); 
-        }
-      }),
+  register(userData: RegisterUserDto): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/register`, userData).pipe(
       catchError(this.handleError)
     );
   }
-  
+
   confirm(code: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/confirm`, { code }).pipe(
       catchError(this.handleError)
@@ -50,7 +47,7 @@ export class AuthService {
 
   logout(): void {
     localStorage.removeItem(this.tokenKey);
-    this.isAuthenticatedSubject.next(false);
+    this.store.dispatch(logout());
   }
 
   getToken(): string | null {
@@ -59,9 +56,8 @@ export class AuthService {
 
   private setToken(token: string): void {
     localStorage.setItem(this.tokenKey, token);
-    this.isAuthenticatedSubject.next(true);
   }
-
+  
   private hasToken(): boolean {
     return !!localStorage.getItem(this.tokenKey);
   }

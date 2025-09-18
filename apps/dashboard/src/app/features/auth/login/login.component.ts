@@ -3,7 +3,7 @@ import { FormsModule, NgForm } from '@angular/forms';
 import { Router } from '@angular/router';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
-import { LoginUserDto } from 'libs/data/src/lib/dto/login-user.dto';
+import { LoginUserDto } from 'libs/dto/login-user.dto';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -25,7 +25,7 @@ export class LoginComponent {
       this.authService.login(this.loginData).subscribe({
         next: (res) => {
           console.log('Login successful:', res);
-          this.router.navigate(['/dashboard']); // redirect after login
+          this.router.navigate(['/dashboard']); 
         },
         error: (err) => {
           console.error('Login failed:', err);

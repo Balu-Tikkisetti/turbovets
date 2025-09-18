@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { RegisterUserDto } from "libs/data/src/lib/dto/register-user.dto";
+import { RegisterUserDto } from "libs/data/dto/register-user.dto";
 import { AuthService } from '../../../core/services/auth.service';
 import { HttpClientModule } from '@angular/common/http';
 
@@ -31,11 +31,11 @@ export class RegisterComponent {
       this.authService.register(this.registerData).subscribe({
         next: (response: any) => {
           console.log('Registration successful:', response);
-          this.router.navigate(['/dashboard']);
+          this.router.navigate(['/login']);
         },
         error: (error: any) => {
           console.error('Registration failed:', error);
-          // Handle registration error, e.g., show an alert or a specific message to the user
+      
         }
       });
     } else {
