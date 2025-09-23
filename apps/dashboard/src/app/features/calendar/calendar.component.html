@@ -1,0 +1,501 @@
+<div class="calendar-container">
+  <!-- Calendar Header -->
+  <div class="calendar-header">
+    <div class="calendar-controls">
+      <div class="view-controls">
+        <button 
+          (click)="setViewMode('month')"
+          [class.active]="viewMode === 'month'"
+          class="view-btn"
+        >
+          Month
+        </button>
+        <button 
+          (click)="setViewMode('week')"
+          [class.active]="viewMode === 'week'"
+          class="view-btn"
+        >
+          Week
+        </button>
+        <button 
+          (click)="setViewMode('day')"
+          [class.active]="viewMode === 'day'"
+          class="view-btn"
+        >
+          Day
+        </button>
+      </div>
+      
+      <div class="navigation-controls">
+        <button (click)="previousMonth()" class="nav-btn" title="Previous Month">
+          ←
+        </button>
+        <button (click)="goToToday()" class="today-btn">
+          Today
+        </button>
+        <button (click)="nextMonth()" class="nav-btn" title="Next Month">
+          →
+        </button>
+      </div>
+      
+      <div class="date-display">
+        <h2>{{ formatDate(currentDate) }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <!-- Calendar Grid -->
+  @if (viewMode === 'month') {
+    <div class="calendar-grid">
+    <!-- Weekday Headers -->
+    <div class="weekday-headers">
+      @for (day of calendarDays.slice(0, 7); track day.date) {
+        <div class="weekday-header">
+          {{ formatWeekday(day.date) }}
+        </div>
+      }
+    </div>
+    
+    <!-- Calendar Days -->
+    <div class="calendar-days">
+      @for (day of calendarDays; track day.date) {
+        <div 
+          class="calendar-day"
+          [class.current-month]="day.isCurrentMonth"
+          [class.today]="day.isToday"
+          [class.selected]="day.isSelected"
+          (click)="selectDate(day.date)"
+        >
+        <div class="day-number">{{ formatDay(day.date) }}</div>
+        
+        <!-- Tasks for this day -->
+        <div class="day-tasks">
+          @for (task of day.tasks.slice(0, 3); track task.id) {
+            <div 
+              class="task-indicator"
+              [class]="getTaskColor(task)"
+              [title]="task.title"
+              (click)="openTaskDetailsModal(task); $event.stopPropagation()"
+            >
+              <span class="task-title">{{ task.title }}</span>
+            </div>
+          }
+          
+          <!-- Show more indicator if there are more than 3 tasks -->
+          @if (day.tasks.length > 3) {
+            <div 
+              class="more-tasks"
+              (click)="openTaskModal(undefined, day.date); $event.stopPropagation()"
+            >
+              +{{ day.tasks.length - 3 }} more
+            </div>
+          }
+        </div>
+        </div>
+      }
+    </div>
+    </div>
+  }
+
+  <!-- Week View -->
+  @if (viewMode === 'week') {
+    <div class="week-view">
+    <div class="week-header">
+      <div class="time-column"></div>
+      @for (day of calendarDays.slice(0, 7); track day.date) {
+        <div 
+          class="week-day-header"
+          [class.today]="day.isToday"
+          [class.selected]="day.isSelected"
+          (click)="selectDate(day.date)"
+        >
+        <div class="week-day-name">{{ formatWeekday(day.date) }}</div>
+        <div class="week-day-number">{{ formatDay(day.date) }}</div>
+        </div>
+      }
+    </div>
+    
+    <div class="week-content">
+      <div class="time-column">
+        @for (hour of [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]; track hour) {
+          <div class="time-slot">
+            {{ hour === 0 ? '12 AM' : hour < 12 ? hour + ' AM' : hour === 12 ? '12 PM' : (hour - 12) + ' PM' }}
+          </div>
+        }
+      </div>
+      
+      <div class="week-days">
+        @for (day of calendarDays.slice(0, 7); track day.date) {
+          <div 
+            class="week-day"
+            [class.today]="day.isToday"
+            [class.selected]="day.isSelected"
+          >
+          @for (task of day.tasks; track task.id) {
+            <div 
+              class="week-task"
+              [class]="getTaskColor(task)"
+              (click)="openTaskDetailsModal(task)"
+            >
+              @if (task.dueTime) {
+                <div class="task-time">
+                  {{ formatTime(task.dueTime) }}
+                </div>
+              }
+              <div class="task-title">{{ task.title }}</div>
+              <div class="task-priority" [class]="getTaskPriorityColor(task.priority)">
+                {{ task.priority | titlecase }}
+              </div>
+            </div>
+          }
+          </div>
+        }
+      </div>
+    </div>
+    </div>
+  }
+
+  <!-- Day View -->
+  @if (viewMode === 'day') {
+    <div class="day-view">
+    <div class="day-header">
+      <h3>{{ selectedDate ? selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Select a day' }}</h3>
+    </div>
+    
+    @if (selectedDate) {
+      <div class="day-content">
+      <div class="time-column">
+        @for (hour of [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23]; track hour) {
+          <div class="time-slot">
+            {{ hour === 0 ? '12 AM' : hour < 12 ? hour + ' AM' : hour === 12 ? '12 PM' : (hour - 12) + ' PM' }}
+          </div>
+        }
+      </div>
+      
+      <div class="day-timeline">
+        @for (task of getTasksForDate(selectedDate); track task.id) {
+          <div 
+            class="day-task"
+            [class]="getTaskColor(task)"
+            (click)="openTaskDetailsModal(task)"
+          >
+          <div class="task-header">
+            <div class="task-title">{{ task.title }}</div>
+            @if (task.dueTime) {
+              <div class="task-time">
+                {{ formatTime(task.dueTime) }}
+              </div>
+            }
+          </div>
+          <div class="task-details">
+            <div class="task-priority" [class]="getTaskPriorityColor(task.priority)">
+              <i [attr.data-lucide]="getPriorityIcon(task.priority)"></i>
+              {{ task.priority | titlecase }}
+            </div>
+            <div class="task-status" [class]="getTaskStatusColor(task.status)">
+              <i [attr.data-lucide]="getStatusIcon(task.status)"></i>
+              {{ task.status | titlecase }}
+            </div>
+          </div>
+          @if (task.description) {
+            <div class="task-description">
+              {{ task.description }}
+            </div>
+          }
+          </div>
+        }
+      </div>
+      </div>
+    }
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (loading$ | async) {
+    <div class="loading-state">
+      <div class="loading-spinner"></div>
+      <p>Loading calendar...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (error$ | async; as error) {
+    <div class="error-state">
+      <i data-lucide="alert-circle"></i>
+      <h3>Error Loading Calendar</h3>
+      <p>{{ error }}</p>
+    </div>
+  }
+</div>
+
+<!-- Task Modal -->
+@if (showTaskModal) {
+  <div class="modal-overlay" (click)="closeTaskModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ selectedTask ? 'Edit Task' : 'Create Task' }}</h3>
+      <button (click)="closeTaskModal()" class="btn-icon">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+    
+    <div class="modal-body">
+      <form (ngSubmit)="saveTask()">
+        <div class="form-group">
+          <label for="title">Title *</label>
+          <input 
+            type="text" 
+            id="title"
+            [(ngModel)]="taskForm.title" 
+            name="title"
+            required
+            placeholder="Enter task title..."
+          >
+        </div>
+        
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea 
+            id="description"
+            [(ngModel)]="taskForm.description" 
+            name="description"
+            rows="3"
+            placeholder="Enter task description..."
+          ></textarea>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="category">Category</label>
+            <select id="category" [(ngModel)]="taskForm.category" name="category">
+              @for (cat of categories; track cat.value) {
+                <option [value]="cat.value">
+                  {{ cat.label }}
+                </option>
+              }
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="priority">Priority</label>
+            <select id="priority" [(ngModel)]="taskForm.priority" name="priority">
+              @for (priority of priorities; track priority.value) {
+                <option [value]="priority.value">
+                  {{ priority.label }}
+                </option>
+              }
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="status">Status</label>
+            <select id="status" [(ngModel)]="taskForm.status" name="status">
+              @for (status of statuses; track status.value) {
+                <option [value]="status.value">
+                  {{ status.label }}
+                </option>
+              }
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="department">Department</label>
+            <select id="department" [(ngModel)]="taskForm.department" name="department">
+              <option value="">Select Department</option>
+              @for (dept of departments; track dept) {
+                <option [value]="dept">
+                  {{ dept }}
+                </option>
+              }
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="dueDate">Due Date</label>
+            <input 
+              type="date" 
+              id="dueDate"
+              [(ngModel)]="taskForm.dueDate" 
+              name="dueDate"
+            >
+          </div>
+          
+          <div class="form-group">
+            <label for="dueTime">Due Time</label>
+            <input 
+              type="time" 
+              id="dueTime"
+              [(ngModel)]="taskForm.dueTime" 
+              name="dueTime"
+            >
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input 
+              type="checkbox" 
+              [(ngModel)]="taskForm.recurring" 
+              name="recurring"
+            >
+            <span class="checkmark"></span>
+            Recurring Task
+          </label>
+        </div>
+      </form>
+    </div>
+    
+    <div class="modal-footer">
+      <button (click)="closeTaskModal()" class="btn btn-secondary">Cancel</button>
+      @if (selectedTask) {
+        <button 
+          (click)="deleteTask(selectedTask)" 
+          class="btn btn-danger"
+        >
+          Delete
+        </button>
+      }
+      <button 
+        (click)="saveTask()" 
+        [disabled]="!taskForm.title.trim() || isSaving"
+        class="btn btn-primary"
+      >
+        {{ isSaving ? 'Saving...' : (selectedTask ? 'Update Task' : 'Create Task') }}
+      </button>
+    </div>
+  </div>
+  </div>
+}
+
+<!-- Task Details Modal (Read-Only) -->
+@if (showTaskDetailsModal && selectedTask) {
+  <div class="modal-overlay" (click)="closeTaskDetailsModal()">
+  <div class="modal-content task-details-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Task Details</h3>
+      <button (click)="closeTaskDetailsModal()" class="btn-icon">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="task-details-content">
+        <!-- Task Title -->
+        <div class="detail-section">
+          <h4 class="detail-title">{{ selectedTask.title }}</h4>
+          @if (selectedTask.description) {
+            <p class="detail-description">{{ selectedTask.description }}</p>
+          }
+        </div>
+        
+        <!-- Task Status and Priority -->
+        <div class="detail-row">
+          <div class="detail-item">
+            <label>Status</label>
+            <span class="status-badge" [class]="getTaskStatusColor(selectedTask.status)">
+              <i [attr.data-lucide]="getStatusIcon(selectedTask.status)"></i>
+              {{ selectedTask.status | titlecase }}
+            </span>
+          </div>
+          
+          <div class="detail-item">
+            <label>Priority</label>
+            <span class="priority-badge" [class]="getTaskPriorityColor(selectedTask.priority)">
+              <i [attr.data-lucide]="getPriorityIcon(selectedTask.priority)"></i>
+              {{ selectedTask.priority | titlecase }}
+            </span>
+          </div>
+        </div>
+        
+        <!-- Task Category and Department -->
+        <div class="detail-row">
+          <div class="detail-item">
+            <label>Category</label>
+            <span class="category-badge">
+              <i [attr.data-lucide]="getCategoryIcon(selectedTask.category)"></i>
+              {{ selectedTask.category | titlecase }}
+            </span>
+          </div>
+          
+          @if (selectedTask.department) {
+            <div class="detail-item">
+              <label>Department</label>
+              <span class="department-badge">{{ selectedTask.department }}</span>
+            </div>
+          }
+        </div>
+        
+        <!-- Due Date and Time -->
+        @if (selectedTask.dueDate) {
+          <div class="detail-row">
+            <div class="detail-item">
+              <label>Due Date</label>
+              <span class="date-info">
+                <i data-lucide="calendar"></i>
+                {{ formatFullDate(selectedTask.dueDate) }}
+              </span>
+            </div>
+            
+            @if (selectedTask.dueTime) {
+              <div class="detail-item">
+                <label>Due Time</label>
+                <span class="time-info">
+                  <i data-lucide="clock"></i>
+                  {{ formatTime(selectedTask.dueTime) }}
+                </span>
+              </div>
+            }
+          </div>
+        }
+        
+        <!-- Task Metadata -->
+        <div class="detail-row">
+          <div class="detail-item">
+            <label>Created</label>
+            <span class="meta-info">
+              <i data-lucide="calendar-plus"></i>
+              {{ getRelativeTime(selectedTask.createdAt) }}
+            </span>
+          </div>
+          
+          @if (selectedTask.updatedAt && selectedTask.updatedAt !== selectedTask.createdAt) {
+            <div class="detail-item">
+              <label>Last Updated</label>
+              <span class="meta-info">
+                <i data-lucide="edit"></i>
+                {{ getRelativeTime(selectedTask.updatedAt) }}
+              </span>
+            </div>
+          }
+        </div>
+        
+        <!-- Overdue Warning -->
+        @if (isOverdue(selectedTask)) {
+          <div class="overdue-warning">
+            <i data-lucide="alert-triangle"></i>
+            <span>This task is overdue</span>
+          </div>
+        }
+        
+        <!-- Due Today Warning -->
+        @if (isDueToday(selectedTask) && !isOverdue(selectedTask)) {
+          <div class="due-today-warning">
+            <i data-lucide="clock"></i>
+            <span>Due today</span>
+          </div>
+        }
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button (click)="closeTaskDetailsModal()" class="btn btn-secondary">
+        Close
+      </button>
+    </div>
+  </div>
+  </div>
+}

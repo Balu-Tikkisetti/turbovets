@@ -1,43 +1,151 @@
 import { createAction, props } from '@ngrx/store';
+import { Task, TaskCategory, TaskPriority, TaskStatus } from '@turbovets/data';
 
-export const loadTasks = createAction('[Task] Load Tasks');
+export interface TaskFilters {
+  searchTerm: string;
+  category: TaskCategory | '';
+  status: TaskStatus | '';
+  priority: TaskPriority | '';
+  assigneeId: string | '';
+  creatorId: string | '';
+  department: string | '';
+  dateRange: {
+    start: Date | null;
+    end: Date | null;
+  };
+}
 
+export interface TaskSortOptions {
+  field: 'createdAt' | 'updatedAt' | 'dueDate' | 'priority' | 'title' | 'status';
+  direction: 'asc' | 'desc';
+}
+
+// Load Tasks Actions
+export const loadTasks = createAction('[Tasks] Load Tasks');
 export const loadTasksSuccess = createAction(
-  '[Task] Load Tasks Success',
-  props<{ tasks: any[] }>()
+  '[Tasks] Load Tasks Success',
+  props<{ tasks: Task[] }>()
 );
-
 export const loadTasksFailure = createAction(
-  '[Task] Load Tasks Failure',
-  props<{ error: any }>()
+  '[Tasks] Load Tasks Failure',
+  props<{ error: string }>()
 );
 
-export const createNewTask = createAction(
-  '[Task] Create New Task',
-  props<{ task: any }>()
+// Create Task Actions
+export const createTask = createAction(
+  '[Tasks] Create Task',
+  props<{ task: Partial<Task> }>()
+);
+export const createTaskSuccess = createAction(
+  '[Tasks] Create Task Success',
+  props<{ task: Task }>()
+);
+export const createTaskFailure = createAction(
+  '[Tasks] Create Task Failure',
+  props<{ error: string }>()
 );
 
-export const createNewTaskSuccess = createAction(
-  '[Task] Create New Task Success',
-  props<{ task: any }>()
-);
-
-export const createNewTaskFailure = createAction(
-  '[Task] Create New Task Failure',
-  props<{ error: any }>()
-);
-
+// Update Task Actions
 export const updateTask = createAction(
-  '[Task] Update Task',
-  props<{ task: any }>()
+  '[Tasks] Update Task',
+  props<{ taskId: string; updates: Partial<Task> }>()
 );
-
 export const updateTaskSuccess = createAction(
-  '[Task] Update Task Success',
-  props<{ task: any }>()
+  '[Tasks] Update Task Success',
+  props<{ task: Task }>()
+);
+export const updateTaskFailure = createAction(
+  '[Tasks] Update Task Failure',
+  props<{ error: string }>()
 );
 
-export const updateTaskFailure = createAction(
-  '[Task] Update Task Failure',
-  props<{ error: any }>()
+// Delete Task Actions
+export const deleteTask = createAction(
+  '[Tasks] Delete Task',
+  props<{ taskId: string }>()
+);
+export const deleteTaskSuccess = createAction(
+  '[Tasks] Delete Task Success',
+  props<{ taskId: string }>()
+);
+export const deleteTaskFailure = createAction(
+  '[Tasks] Delete Task Failure',
+  props<{ error: string }>()
+);
+
+// Filter and Sort Actions
+export const setTaskFilters = createAction(
+  '[Tasks] Set Filters',
+  props<{ filters: Partial<TaskFilters> }>()
+);
+export const clearTaskFilters = createAction('[Tasks] Clear Filters');
+
+export const setTaskSort = createAction(
+  '[Tasks] Set Sort',
+  props<{ sort: TaskSortOptions }>()
+);
+
+// Bulk Actions
+export const bulkUpdateTasks = createAction(
+  '[Tasks] Bulk Update Tasks',
+  props<{ taskIds: string[]; updates: Partial<Task> }>()
+);
+export const bulkUpdateTasksSuccess = createAction(
+  '[Tasks] Bulk Update Tasks Success',
+  props<{ tasks: Task[] }>()
+);
+export const bulkUpdateTasksFailure = createAction(
+  '[Tasks] Bulk Update Tasks Failure',
+  props<{ error: string }>()
+);
+
+export const bulkDeleteTasks = createAction(
+  '[Tasks] Bulk Delete Tasks',
+  props<{ taskIds: string[] }>()
+);
+export const bulkDeleteTasksSuccess = createAction(
+  '[Tasks] Bulk Delete Tasks Success',
+  props<{ taskIds: string[] }>()
+);
+export const bulkDeleteTasksFailure = createAction(
+  '[Tasks] Bulk Delete Tasks Failure',
+  props<{ error: string }>()
+);
+
+// Bulk Status Update Actions
+export const bulkUpdateTaskStatus = createAction(
+  '[Tasks] Bulk Update Task Status',
+  props<{ taskIds: string[]; status: TaskStatus }>()
+);
+export const bulkUpdateTaskStatusSuccess = createAction(
+  '[Tasks] Bulk Update Task Status Success',
+  props<{ tasks: Task[] }>()
+);
+export const bulkUpdateTaskStatusFailure = createAction(
+  '[Tasks] Bulk Update Task Status Failure',
+  props<{ error: string }>()
+);
+
+// User-specific Actions
+export const loadUserTasks = createAction(
+  '[Tasks] Load User Tasks',
+  props<{ userId: string }>()
+);
+export const loadTasksByCategory = createAction(
+  '[Tasks] Load Tasks By Category',
+  props<{ category: TaskCategory }>()
+);
+
+// Move Task Between Departments
+export const moveTaskToDepartment = createAction(
+  '[Tasks] Move Task To Department',
+  props<{ taskId: string; department: string }>()
+);
+export const moveTaskToDepartmentSuccess = createAction(
+  '[Tasks] Move Task To Department Success',
+  props<{ task: Task }>()
+);
+export const moveTaskToDepartmentFailure = createAction(
+  '[Tasks] Move Task To Department Failure',
+  props<{ error: string }>()
 );

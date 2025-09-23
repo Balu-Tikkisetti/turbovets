@@ -1,0 +1,611 @@
+<div class="tasks-container min-h-screen bg-gray-50 dark:bg-gray-900">
+  <!-- Advanced Header with Gradient -->
+  <div class="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white shadow-xl">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+        <!-- Header Left -->
+        <div class="flex-1">
+          <h1 class="text-4xl font-bold mb-2">Task Management</h1>
+          <p class="text-blue-100 text-lg">Advanced task tracking and collaboration platform</p>
+        </div>
+        
+        <!-- Header Right -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <!-- Completion Progress -->
+          
+          
+          <!-- Quick Stats -->
+          <div class="flex gap-4">
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-center">
+              <div class="text-2xl font-bold">{{ (taskStats$ | async)?.total || 0 }}</div>
+              <div class="text-sm text-blue-100">Total Tasks</div>
+            </div>
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-center">
+              <div class="text-2xl font-bold text-green-300">{{ (taskStats$ | async)?.completed || 0 }}</div>
+              <div class="text-sm text-blue-100">Completed</div>
+            </div>
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-center">
+              <div class="text-2xl font-bold text-yellow-300">{{ (taskStats$ | async)?.pending || 0 }}</div>
+              <div class="text-sm text-blue-100">Pending</div>
+            </div>
+            <div class="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-center">
+              <div class="text-2xl font-bold text-purple-300">{{ (taskStats$ | async)?.inProgress || 0 }}</div>
+              <div class="text-sm text-blue-100">In Progress</div>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <!-- Advanced Controls Bar -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        
+        <!-- Search and Filters -->
+        <div class="flex flex-col sm:flex-row gap-4 flex-1">
+          <!-- Search -->
+          <div class="relative flex-1 max-w-md">
+            <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+            <input 
+              type="text" 
+              placeholder="Search tasks..."
+              [(ngModel)]="searchTerm"
+              (input)="onSearchChange()"
+              class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+          </div>
+          
+          <!-- Quick Filters -->
+          <div class="flex gap-2">
+            <button 
+              *ngFor="let filter of quickFilters"
+              (click)="applyQuickFilter(filter)"
+              [class]="'px-3 py-2 rounded-lg text-sm font-medium transition-colors ' + (activeFilter === filter ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600')"
+            >
+              {{ filter }}
+            </button>
+          </div>
+        </div>
+        
+        <!-- View Controls -->
+        <div class="flex items-center gap-4">
+          <!-- Sort Dropdown -->
+          <div class="relative">
+            <select 
+              [(ngModel)]="sortField"
+              (change)="onSortChange()"
+              class="appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="createdAt">Created Date</option>
+              <option value="dueDate">Due Date</option>
+              <option value="priority">Priority</option>
+              <option value="status">Status</option>
+              <option value="title">Title</option>
+            </select>
+            <i data-lucide="chevron-down" class="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"></i>
+          </div>
+          
+          <!-- View Mode Toggle -->
+          <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+            <button 
+              (click)="setViewMode('list')"
+              [class]="'p-2 rounded-md transition-colors ' + (viewMode === 'list' ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200')"
+              title="List View"
+            >
+              <i data-lucide="list" class="w-4 h-4"></i>
+            </button>
+            <button 
+              (click)="setViewMode('kanban')"
+              [class]="'p-2 rounded-md transition-colors ' + (viewMode === 'kanban' ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200')"
+              title="Kanban View"
+            >
+              <i data-lucide="columns" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Keyboard Shortcuts Help -->
+          <div class="relative group">
+            <button class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" title="Keyboard Shortcuts">
+              <i data-lucide="keyboard" class="w-5 h-5"></i>
+            </button>
+            <div class="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div class="p-4">
+                <h3 class="font-semibold text-gray-900 dark:text-white mb-3">Keyboard Shortcuts</h3>
+                <div class="space-y-2 text-sm">
+                  <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">New Task</span>
+                    <kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">Ctrl+N</kbd>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Select All</span>
+                    <kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">Ctrl+A</kbd>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Delete Selected</span>
+                    <kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">Delete</kbd>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Toggle Completed</span>
+                    <kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">Space</kbd>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Priority Filters</span>
+                    <kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">1-4</kbd>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600 dark:text-gray-400">Close/Reset</span>
+                    <kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">Esc</kbd>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    @if (selectedTasks.size > 0) {
+      <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-6">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+              <i data-lucide="check" class="w-4 h-4 text-blue-600 dark:text-blue-400"></i>
+            </div>
+            <span class="font-semibold text-blue-900 dark:text-blue-100">
+              {{ selectedTasks.size }} task{{ selectedTasks.size > 1 ? 's' : '' }} selected
+            </span>
+          </div>
+          
+          <div class="flex items-center gap-2">
+            @if (currentUser?.role === Role.Owner || currentUser?.role === Role.Admin) {
+              <button 
+                (click)="bulkUpdateStatus(TaskStatus.Completed)"
+                class="px-3 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors flex items-center gap-2"
+                title="Mark as completed"
+              >
+                <i data-lucide="check" class="w-4 h-4"></i>
+                Complete
+              </button>
+              <button 
+                (click)="bulkUpdateStatus(TaskStatus.ToDo)"
+                class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
+                title="Mark as to-do"
+              >
+                <i data-lucide="square" class="w-4 h-4"></i>
+                To-Do
+              </button>
+            }
+            @if (currentUser?.role === Role.Owner) {
+              <button 
+                (click)="bulkDeleteTasks()"
+                class="px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center gap-2"
+                title="Delete selected"
+              >
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                Delete
+              </button>
+            }
+            <button 
+              (click)="clearSelection()"
+              class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              title="Clear selection"
+            >
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Loading State -->
+    @if (loading$ | async) {
+      <div class="flex items-center justify-center py-12">
+        <div class="text-center">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p class="text-gray-600 dark:text-gray-400">Loading tasks...</p>
+        </div>
+      </div>
+    }
+
+    <!-- Error State -->
+    @if (error$ | async; as error) {
+      <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-8 text-center">
+        <div class="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+          <i data-lucide="alert-circle" class="w-8 h-8 text-red-600 dark:text-red-400"></i>
+        </div>
+        <h3 class="text-xl font-semibold text-red-800 dark:text-red-200 mb-2">Error Loading Tasks</h3>
+        <p class="text-red-700 dark:text-red-300 mb-6">{{ error }}</p>
+        <button (click)="retryLoadTasks()" class="btn btn-primary bg-red-600 hover:bg-red-700 text-white">
+          <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>
+          Retry
+        </button>
+      </div>
+    }
+
+    <!-- Empty State -->
+    @if ((loading$ | async) === false && (error$ | async) === null && (filteredTasks$ | async)?.length === 0) {
+      <div class="text-center py-12">
+        <div class="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+          <i data-lucide="clipboard-list" class="w-12 h-12 text-gray-400"></i>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">No tasks found</h3>
+        <p class="text-gray-600 dark:text-gray-400">Use the "New Task" button in the header to create your first task</p>
+      </div>
+    }
+
+    <!-- Tasks Content -->
+    @if ((loading$ | async) === false && (error$ | async) === null && (filteredTasks$ | async) && (filteredTasks$ | async)!.length > 0) {
+      
+      <!-- List View -->
+      @if (viewMode === 'list') {
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <!-- Table Header -->
+          <div class="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600">
+            <div class="grid grid-cols-12 gap-4 p-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
+              <div class="col-span-1">
+                <input 
+                  type="checkbox" 
+                  [checked]="selectedTasks.size > 0 && selectedTasks.size === getFilteredTasksLength()"
+                  [indeterminate]="selectedTasks.size > 0 && selectedTasks.size < getFilteredTasksLength()"
+                  (change)="selectedTasks.size > 0 ? clearSelection() : selectAllTasks()"
+                  class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                >
+              </div>
+              <div class="col-span-4">Task</div>
+              <div class="col-span-2">Priority</div>
+              <div class="col-span-2">Status</div>
+              <div class="col-span-2">Due Date</div>
+              <div class="col-span-1">Actions</div>
+            </div>
+          </div>
+          
+          <!-- Task Rows with Drag and Drop -->
+          <div class="divide-y divide-gray-200 dark:divide-gray-600" cdkDropList (cdkDropListDropped)="onTaskDrop($event)">
+            @for (task of getFilteredTasksForDisplay(filteredTasks$ | async); track task.id) {
+              <div 
+                cdkDrag
+                class="grid grid-cols-12 gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg mb-2 shadow-sm"
+                [class.bg-blue-50]="selectedTasks.has(task.id)"
+                [class.dark:bg-blue-900/20]="selectedTasks.has(task.id)"
+                (click)="editTask(task)"
+                (keydown.enter)="editTask(task)"
+                (keydown.space)="editTask(task)"
+                tabindex="0"
+                role="button"
+                [attr.aria-label]="'Edit task: ' + task.title"
+              >
+                <!-- Checkbox and Drag Handle -->
+                <div class="col-span-1 flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    [checked]="selectedTasks.has(task.id)"
+                    (change)="toggleTaskSelection(task.id)"
+                    (click)="$event.stopPropagation()"
+                    class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                  >
+                  <div cdkDragHandle class="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <i data-lucide="grip-vertical" class="w-4 h-4"></i>
+                  </div>
+                </div>
+                
+                <!-- Task Info -->
+                <div class="col-span-4">
+                  <div class="flex items-start gap-3">
+                    <div class="flex-1 min-w-0">
+                      <h3 class="font-semibold text-gray-900 dark:text-white truncate">{{ task.title }}</h3>
+                      @if (task.description) {
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{{ task.description }}</p>
+                      }
+                      <div class="flex items-center gap-2 mt-2">
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                          {{ task.category }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Priority -->
+                <div class="col-span-2 flex items-center">
+                  <span 
+                    class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                    [class]="getPriorityClass(task.priority)"
+                  >
+                    <i [attr.data-lucide]="getPriorityIcon(task.priority)" class="w-3 h-3 mr-1"></i>
+                    {{ task.priority }}
+                  </span>
+                </div>
+                
+                <!-- Status -->
+                <div class="col-span-2 flex items-center">
+                  <span 
+                    class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                    [class]="getStatusClass(task.status)"
+                  >
+                    <i [attr.data-lucide]="getStatusIcon(task.status)" class="w-3 h-3 mr-1"></i>
+                    {{ task.status }}
+                  </span>
+                </div>
+                
+                <!-- Due Date -->
+                <div class="col-span-2 flex items-center">
+                  @if (task.dueDate) {
+                    <span 
+                      class="text-sm"
+                      [class]="isOverdue(task.dueDate) ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-600 dark:text-gray-400'"
+                    >
+                      {{ formatDate(task.dueDate) }}
+                    </span>
+                  } @else {
+                    <span class="text-sm text-gray-400 dark:text-gray-500">No due date</span>
+                  }
+                </div>
+                
+                <!-- Actions -->
+                <div class="col-span-1 flex items-center gap-1">
+            @if (canEditTask(task)) {
+              <button 
+                (click)="editTask(task); $event.stopPropagation()"
+                class="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                title="Edit task"
+              >
+                <i data-lucide="edit" class="w-4 h-4"></i>
+              </button>
+            }
+            @if (canDeleteTask(task)) {
+              <button 
+                (click)="deleteTask(task); $event.stopPropagation()"
+                class="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                title="Delete task"
+              >
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            }
+                  <button 
+                    (click)="toggleTaskStatus(task); $event.stopPropagation()"
+                    class="p-2 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                    [title]="task.status === TaskStatus.Completed ? 'Mark as to-do' : 'Mark as completed'"
+                  >
+                    <i [attr.data-lucide]="task.status === TaskStatus.Completed ? 'square' : 'check'" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Kanban View -->
+      @if (viewMode === 'kanban') {
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          @for (status of taskStatuses; track status) {
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+              <div class="p-4 border-b border-gray-200 dark:border-gray-600">
+                <h3 class="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <i [attr.data-lucide]="getStatusIcon(status)" class="w-4 h-4"></i>
+                  {{ status }}
+                  <span class="ml-auto text-sm text-gray-500 dark:text-gray-400">
+                    {{ getTasksByStatus(filteredTasks$ | async, status).length }}
+                  </span>
+                </h3>
+              </div>
+              <div class="p-4 space-y-3 min-h-[400px]">
+                @for (task of getTasksByStatus(filteredTasks$ | async, status); track task.id) {
+                  <div 
+                    class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow cursor-pointer"
+                    (click)="editTask(task)"
+                    (keyup.enter)="editTask(task)"
+                    (keyup.space)="editTask(task)"
+                    tabindex="0"
+                    role="button"
+                    [attr.aria-label]="'Edit task: ' + task.title"
+                  >
+                    <div class="flex items-start justify-between mb-2">
+                      <h4 class="font-medium text-gray-900 dark:text-white text-sm">{{ task.title }}</h4>
+                      <span 
+                        class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                        [class]="getPriorityClass(task.priority)"
+                      >
+                        {{ task.priority }}
+                      </span>
+                    </div>
+                    @if (task.description) {
+                      <p class="text-xs text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">{{ task.description }}</p>
+                    }
+                    @if (task.dueDate) {
+                      <div class="flex items-center gap-1 text-xs">
+                        <i data-lucide="calendar" class="w-3 h-3 text-gray-400"></i>
+                        <span 
+                          [class]="isOverdue(task.dueDate) ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-500 dark:text-gray-400'"
+                        >
+                          {{ formatDate(task.dueDate) }}
+                        </span>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+  </div>
+</div>
+
+<!-- Create/Edit Task Modal -->
+@if (showEditModal) {
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-600">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
+          {{ selectedTask ? 'Edit Task' : 'Create New Task' }}
+        </h2>
+        <button 
+          (click)="closeModals()" 
+          class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+        >
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      
+      <!-- Modal Body -->
+      <div class="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <form (ngSubmit)="saveTask()" #taskFormRef="ngForm">
+          <div class="space-y-6">
+            <!-- Title -->
+            <div>
+              <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Title *
+              </label>
+              <input 
+                type="text" 
+                id="title"
+                [(ngModel)]="taskForm.title" 
+                name="title"
+                required
+                minlength="3"
+                maxlength="100"
+                placeholder="Enter task title..."
+                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                #titleInput="ngModel"
+              >
+              @if (titleInput.invalid && titleInput.touched) {
+                <div class="mt-2 text-sm text-red-600 dark:text-red-400">
+                  @if (titleInput.errors?.['required']) {
+                    Title is required
+                  }
+                  @if (titleInput.errors?.['minlength']) {
+                    Title must be at least 3 characters
+                  }
+                  @if (titleInput.errors?.['maxlength']) {
+                    Title must be less than 100 characters
+                  }
+                </div>
+              }
+            </div>
+            
+            <!-- Description -->
+            <div>
+              <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Description
+              </label>
+              <textarea 
+                id="description"
+                [(ngModel)]="taskForm.description" 
+                name="description"
+                rows="4"
+                placeholder="Enter task description..."
+                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              ></textarea>
+            </div>
+            
+            <!-- Priority and Status -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label for="priority" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Priority
+                </label>
+                <select 
+                  id="priority"
+                  [(ngModel)]="taskForm.priority" 
+                  name="priority"
+                  class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+              
+              <div>
+                <label for="status" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Status
+                </label>
+                <select 
+                  id="status"
+                  [(ngModel)]="taskForm.status" 
+                  name="status"
+                  class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="to-do">To-Do</option>
+                  <option value="started">Started</option>
+                  <option value="ongoing">Ongoing</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+            </div>
+            
+            <!-- Category and Due Date -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Category
+                </label>
+                <select 
+                  id="category"
+                  [(ngModel)]="taskForm.category" 
+                  name="category"
+                  class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="work">Work</option>
+                  <option value="personal">Personal</option>
+                  <option value="shopping">Shopping</option>
+                  <option value="health">Health</option>
+                  <option value="education">Education</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              
+              <div>
+                <label for="dueDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Due Date
+                </label>
+                <input 
+                  type="date" 
+                  id="dueDate"
+                  [(ngModel)]="taskForm.dueDate" 
+                  name="dueDate"
+                  class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      
+      <!-- Modal Footer -->
+      <div class="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-600">
+        <button 
+          type="button"
+          (click)="closeModals()" 
+          class="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+        >
+          Cancel
+        </button>
+        <button 
+          type="button"
+          (click)="saveTask()" 
+          [disabled]="!taskFormRef.form.valid || isSaving"
+          class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+        >
+          @if (isSaving) {
+            <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+            Saving...
+          } @else {
+            <i data-lucide="save" class="w-4 h-4"></i>
+            {{ selectedTask ? 'Update Task' : 'Create Task' }}
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}

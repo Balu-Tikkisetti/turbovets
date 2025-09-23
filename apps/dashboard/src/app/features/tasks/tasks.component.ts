@@ -1,0 +1,845 @@
+import { Component, OnInit, OnDestroy, inject, HostListener } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { Store } from '@ngrx/store';
+import { Observable, Subscription } from 'rxjs';
+import { take } from 'rxjs/operators';
+import { Task, TaskCategory, TaskPriority, TaskStatus, UserDto, Role } from '@turbovets/data';
+import { CdkDragDrop, CdkDropList, CdkDrag, moveItemInArray } from '@angular/cdk/drag-drop';
+import { selectCurrentUser } from '../../core/state/auth.reducer';
+import { 
+  loadTasks, 
+  createTask, 
+  updateTask, 
+  deleteTask,
+  setTaskFilters, 
+  clearTaskFilters,
+  setTaskSort,
+  bulkDeleteTasks,
+  bulkUpdateTaskStatus,
+  TaskFilters,
+  TaskSortOptions
+} from '../../core/state/task/task.actions';
+import { 
+  selectFilteredTasks, 
+  selectTasksLoading, 
+  selectTasksError,
+  selectTaskStats,
+  selectFilteredTaskStats,
+  selectOverdueTasks,
+  selectUpcomingTasks
+} from '../../core/state/task/task.selectors';
+
+@Component({
+  selector: 'app-tasks',
+  standalone: true,
+  imports: [CommonModule, FormsModule, CdkDropList, CdkDrag],
+  templateUrl: './tasks.component.html',
+  styleUrls: ['./tasks.component.scss']
+})
+export class TasksComponent implements OnInit, OnDestroy {
+  private store = inject(Store);
+  
+  // Expose enums for template use
+  TaskStatus = TaskStatus;
+  TaskPriority = TaskPriority;
+  TaskCategory = TaskCategory;
+  Role = Role;
+  
+  // Observables from NgRx state
+  currentUser$: Observable<UserDto | null> = this.store.select(selectCurrentUser);
+  filteredTasks$: Observable<Task[]> = this.store.select(selectFilteredTasks);
+  loading$: Observable<boolean> = this.store.select(selectTasksLoading);
+  error$: Observable<string | null> = this.store.select(selectTasksError);
+  taskStats$: Observable<any> = this.store.select(selectTaskStats);
+  filteredStats$: Observable<any> = this.store.select(selectFilteredTaskStats);
+  overdueTasks$: Observable<Task[]> = this.store.select(selectOverdueTasks);
+  upcomingTasks$: Observable<Task[]> = this.store.select(selectUpcomingTasks);
+  
+  // Local filter state
+  filters: TaskFilters = {
+    searchTerm: '',
+    category: '',
+    status: '',
+    priority: '',
+    assigneeId: '',
+    creatorId: '',
+    department: '',
+    dateRange: {
+      start: null,
+      end: null
+    }
+  };
+  
+  // Sort options
+  sortOptions: TaskSortOptions = {
+    field: 'createdAt',
+    direction: 'desc'
+  };
+  
+  // View options
+  viewMode: 'list' | 'grid' | 'kanban' = 'list';
+  showFilters = false;
+  showCompleted = true;
+  
+  // Modal state
+  showEditModal = false;
+  selectedTask: Task | null = null;
+  isSaving = false;
+  
+  // Advanced filtering and sorting
+  searchTerm = '';
+  activeFilter = 'all';
+  sortField: 'createdAt' | 'updatedAt' | 'dueDate' | 'priority' | 'title' | 'status' = 'createdAt';
+  sortDirection: 'asc' | 'desc' = 'desc';
+  
+  // Quick filters
+  quickFilters = ['All', 'My Tasks', 'Overdue', 'High Priority', 'Completed'];
+  
+  // Task statuses for Kanban
+  taskStatuses = ['to-do', 'started', 'ongoing', 'completed'];
+  
+  // Form data
+  taskForm = {
+    title: '',
+    description: '',
+    category: TaskCategory.Work,
+    priority: TaskPriority.Medium,
+    status: TaskStatus.ToDo,
+    department: '',
+    dueDate: '',
+    dueTime: '',
+    recurring: false,
+    assigneeId: ''
+  };
+  
+  // Available options
+  categories = [
+    { value: TaskCategory.Work, label: 'Work', icon: 'briefcase' },
+    { value: TaskCategory.Personal, label: 'Personal', icon: 'user' }
+  ];
+  
+  priorities = [
+    { value: TaskPriority.Critical, label: 'Critical', color: 'red' },
+    { value: TaskPriority.High, label: 'High', color: 'orange' },
+    { value: TaskPriority.Medium, label: 'Medium', color: 'yellow' },
+    { value: TaskPriority.Low, label: 'Low', color: 'green' }
+  ];
+  
+  statuses = [
+    { value: TaskStatus.ToDo, label: 'To Do', color: 'gray' },
+    { value: TaskStatus.Started, label: 'Started', color: 'blue' },
+    { value: TaskStatus.Ongoing, label: 'Ongoing', color: 'purple' },
+    { value: TaskStatus.Completed, label: 'Completed', color: 'green' }
+  ];
+  
+  sortFields = [
+    { value: 'createdAt', label: 'Created Date' },
+    { value: 'updatedAt', label: 'Updated Date' },
+    { value: 'dueDate', label: 'Due Date' },
+    { value: 'priority', label: 'Priority' },
+    { value: 'title', label: 'Title' },
+    { value: 'status', label: 'Status' }
+  ];
+  
+  departments = ['Engineering', 'Design', 'Marketing', 'Sales', 'HR', 'Finance', 'Operations'];
+  
+  private subscription: Subscription = new Subscription();
+
+  // Current user for permission checks
+  currentUser: UserDto | null = null;
+
+  // Keyboard shortcuts
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboardShortcuts(event: KeyboardEvent) {
+    // Prevent shortcuts when typing in inputs
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+      return;
+    }
+
+    // Ctrl/Cmd + N: Create new task
+    if ((event.ctrlKey || event.metaKey) && event.key === 'n') {
+      event.preventDefault();
+      this.openCreateModal();
+    }
+
+    // Ctrl/Cmd + A: Select all tasks
+    if ((event.ctrlKey || event.metaKey) && event.key === 'a') {
+      event.preventDefault();
+      this.selectAllTasks();
+    }
+
+    // Escape: Clear selection or close modals
+    if (event.key === 'Escape') {
+      if (this.showEditModal) {
+        this.closeModals();
+      } else {
+        this.clearSelection();
+      }
+    }
+
+    // Delete: Delete selected tasks
+    if (event.key === 'Delete' && this.selectedTasks.size > 0) {
+      event.preventDefault();
+      this.bulkDeleteTasks();
+    }
+
+    // Space: Toggle completed filter
+    if (event.key === ' ' && !event.target) {
+      event.preventDefault();
+      this.toggleCompleted();
+    }
+
+    // 1-4: Quick filter by priority
+    if (event.key >= '1' && event.key <= '4') {
+      event.preventDefault();
+      const priorities = [TaskPriority.Critical, TaskPriority.High, TaskPriority.Medium, TaskPriority.Low];
+      const priorityIndex = parseInt(event.key) - 1;
+      if (priorityIndex < priorities.length) {
+        this.updateFilters({ priority: priorities[priorityIndex] });
+      }
+    }
+  }
+
+  // Drag and drop functionality
+  onTaskDrop(event: CdkDragDrop<Task[]>) {
+    if (event.previousContainer === event.container) {
+      // Reorder within the same list
+      this.filteredTasks$.pipe(take(1)).subscribe(tasks => {
+        if (tasks) {
+          const reorderedTasks = [...tasks];
+          moveItemInArray(reorderedTasks, event.previousIndex, event.currentIndex);
+          // Update the store with reordered tasks
+          this.store.dispatch(loadTasks()); // Refresh to maintain server state
+        }
+      });
+    } else {
+      // Move between different status lists (Kanban view)
+      this.moveTaskBetweenStatuses(event);
+    }
+  }
+
+  moveTaskBetweenStatuses(event: CdkDragDrop<Task[]>) {
+    this.filteredTasks$.pipe(take(1)).subscribe(tasks => {
+      if (tasks) {
+        const draggedTask = tasks[event.previousIndex];
+        const newStatus = event.container.id as TaskStatus;
+        
+        // Update task status
+        this.store.dispatch(updateTask({ 
+          taskId: draggedTask.id, 
+          updates: { status: newStatus, updatedAt: new Date() }
+        }));
+      }
+    });
+  }
+
+  ngOnInit() {
+    console.log('TasksComponent: Initializing...');
+    
+    // Subscribe to current user for permission checks
+    this.currentUser$.subscribe(user => {
+      this.currentUser = user;
+      console.log('Current user:', user);
+    });
+    
+    // Load tasks data
+    console.log('TasksComponent: Dispatching loadTasks action');
+    this.store.dispatch(loadTasks());
+    
+    // Debug: Subscribe to loading state
+    this.subscription.add(
+      this.loading$.subscribe(loading => {
+        console.log('TasksComponent: Loading state changed:', loading);
+      })
+    );
+    
+    // Debug: Subscribe to error state
+    this.subscription.add(
+      this.error$.subscribe(error => {
+        if (error) {
+          console.error('TasksComponent: Error loading tasks:', error);
+        }
+      })
+    );
+    
+    // Debug: Subscribe to filtered tasks
+    this.subscription.add(
+      this.filteredTasks$.subscribe(tasks => {
+        console.log('TasksComponent: Filtered tasks updated:', tasks?.length || 0, 'tasks');
+      })
+    );
+    
+    // Set up real-time updates
+    const interval = setInterval(() => {
+      console.log('TasksComponent: Auto-refreshing tasks...');
+      this.store.dispatch(loadTasks());
+    }, 60000); // Update every minute
+    
+    this.subscription.add({ unsubscribe: () => clearInterval(interval) });
+  }
+
+  ngOnDestroy() {
+    this.subscription.unsubscribe();
+  }
+
+  // Filter methods
+  onSearchChange() {
+    this.updateFilters({ searchTerm: this.filters.searchTerm });
+  }
+
+  onCategoryChange() {
+    this.updateFilters({ category: this.filters.category });
+  }
+
+  onStatusChange() {
+    this.updateFilters({ status: this.filters.status });
+  }
+
+  onPriorityChange() {
+    this.updateFilters({ priority: this.filters.priority });
+  }
+
+  onDepartmentChange() {
+    this.updateFilters({ department: this.filters.department });
+  }
+
+  onDateRangeChange() {
+    this.updateFilters({ dateRange: this.filters.dateRange });
+  }
+
+  updateFilters(filters: Partial<TaskFilters>) {
+    this.filters = { ...this.filters, ...filters };
+    this.store.dispatch(setTaskFilters({ filters }));
+  }
+
+  // Helper methods for template
+  setWorkFilter() {
+    this.updateFilters({ category: 'work' as any });
+  }
+
+  setPersonalFilter() {
+    this.updateFilters({ category: 'personal' as any });
+  }
+
+  retryLoadTasks() {
+    console.log('TasksComponent: Retrying to load tasks...');
+    this.store.dispatch(loadTasks());
+  }
+
+
+  clearFilters() {
+    this.filters = {
+      searchTerm: '',
+      category: '',
+      status: '',
+      priority: '',
+      assigneeId: '',
+      creatorId: '',
+      department: '',
+      dateRange: {
+        start: null,
+        end: null
+      }
+    };
+    this.store.dispatch(clearTaskFilters());
+  }
+
+  // Sort methods
+  onSortChange() {
+    this.store.dispatch(setTaskSort({ sort: this.sortOptions }));
+  }
+
+  toggleSortDirection() {
+    this.sortOptions.direction = this.sortOptions.direction === 'asc' ? 'desc' : 'asc';
+    this.onSortChange();
+  }
+
+  // View methods
+  setViewMode(mode: 'list' | 'grid' | 'kanban') {
+    this.viewMode = mode;
+  }
+
+  toggleFilters() {
+    this.showFilters = !this.showFilters;
+  }
+
+  toggleCompleted() {
+    this.showCompleted = !this.showCompleted;
+    if (!this.showCompleted) {
+      this.updateFilters({ status: TaskStatus.Completed });
+    } else {
+      this.updateFilters({ status: '' });
+    }
+  }
+
+  // Task CRUD methods
+  openCreateModal() {
+    // This method is kept for compatibility but the actual create modal is handled by the dashboard
+    console.log('Create task modal should be opened from dashboard');
+  }
+
+  openEditModal(task: Task) {
+    this.selectedTask = task;
+    this.taskForm = {
+      title: task.title,
+      description: task.description || '',
+      category: task.category as any,
+      priority: task.priority as any,
+      status: task.status as any,
+      department: task.department || '',
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
+      dueTime: task.dueTime || '',
+      recurring: task.recurring,
+      assigneeId: task.assigneeId || ''
+    };
+    this.showEditModal = true;
+  }
+
+  // Enhanced delete with confirmation
+  deleteTask(task: Task) {
+    const confirmed = confirm(`Are you sure you want to delete "${task.title}"?\n\nThis action cannot be undone.`);
+    if (confirmed) {
+      this.store.dispatch(deleteTask({ taskId: task.id }));
+    }
+  }
+
+  // Bulk operations
+  selectedTasks: Set<string> = new Set();
+  
+  toggleTaskSelection(taskId: string) {
+    if (this.selectedTasks.has(taskId)) {
+      this.selectedTasks.delete(taskId);
+    } else {
+      this.selectedTasks.add(taskId);
+    }
+  }
+
+  selectAllTasks() {
+    this.filteredTasks$.pipe(take(1)).subscribe(tasks => {
+      if (tasks) {
+        this.selectedTasks.clear();
+        tasks.forEach(task => this.selectedTasks.add(task.id));
+      }
+    });
+  }
+
+  clearSelection() {
+    this.selectedTasks.clear();
+  }
+
+  bulkDeleteTasks() {
+    if (this.selectedTasks.size === 0) return;
+    
+    const confirmed = confirm(`Are you sure you want to delete ${this.selectedTasks.size} selected task(s)?\n\nThis action cannot be undone.`);
+    if (confirmed) {
+      const taskIds = Array.from(this.selectedTasks);
+      console.log('Frontend: Dispatching bulk delete with taskIds:', taskIds);
+      this.store.dispatch(bulkDeleteTasks({ taskIds }));
+      
+      // Clear selection after dispatching deletion
+      this.clearSelection();
+    }
+  }
+
+  bulkUpdateStatus(status: TaskStatus) {
+    if (this.selectedTasks.size === 0) return;
+    
+    const taskIds = Array.from(this.selectedTasks);
+    this.store.dispatch(bulkUpdateTaskStatus({ taskIds, status }));
+    
+    // Clear selection after dispatching update
+    this.clearSelection();
+  }
+
+  closeModals() {
+    this.showEditModal = false;
+    this.selectedTask = null;
+    this.resetForm();
+  }
+
+  resetForm() {
+    this.taskForm = {
+      title: '',
+      description: '',
+      category: TaskCategory.Work,
+      priority: TaskPriority.Medium,
+      status: TaskStatus.ToDo,
+      department: '',
+      dueDate: '',
+      dueTime: '',
+      recurring: false,
+      assigneeId: ''
+    };
+  }
+
+  saveTask() {
+    if (!this.taskForm.title.trim()) {
+      alert('Please enter a task title');
+      return;
+    }
+    
+    this.isSaving = true;
+    
+    const taskData = {
+      ...this.taskForm,
+      dueDate: this.taskForm.dueDate ? new Date(this.taskForm.dueDate) : undefined,
+      creatorId: '', // Will be set by the effect
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    if (this.selectedTask) {
+      // Update existing task
+      this.store.dispatch(updateTask({ 
+        taskId: this.selectedTask.id, 
+        updates: taskData 
+      }));
+    } else {
+      // Create new task
+      this.store.dispatch(createTask({ task: taskData }));
+    }
+    
+    // Handle success/error with timeout
+    const timeout = setTimeout(() => {
+      this.isSaving = false;
+    }, 5000); // 5 second timeout
+    
+    this.subscription.add(
+      this.store.select(selectTasksError).pipe(take(1)).subscribe(error => {
+        clearTimeout(timeout);
+        if (!error) {
+          this.closeModals();
+          this.isSaving = false;
+        } else {
+          console.error('Error saving task:', error);
+          alert(`Failed to save task: ${error}`);
+          this.isSaving = false;
+        }
+      })
+    );
+  }
+
+
+  toggleTaskStatus(task: Task) {
+    const newStatus = task.status === TaskStatus.Completed ? TaskStatus.ToDo : TaskStatus.Completed;
+    this.store.dispatch(updateTask({ 
+      taskId: task.id, 
+      updates: { status: newStatus, updatedAt: new Date() }
+    }));
+  }
+
+  // Utility methods
+  getPriorityColor(priority: TaskPriority): string {
+    const priorityMap = {
+      [TaskPriority.Critical]: 'red',
+      [TaskPriority.High]: 'orange',
+      [TaskPriority.Medium]: 'yellow',
+      [TaskPriority.Low]: 'green'
+    };
+    return priorityMap[priority] || 'gray';
+  }
+
+  getStatusColor(status: TaskStatus): string {
+    const statusMap = {
+      [TaskStatus.ToDo]: 'gray',
+      [TaskStatus.Started]: 'blue',
+      [TaskStatus.Ongoing]: 'purple',
+      [TaskStatus.Completed]: 'green'
+    };
+    return statusMap[status] || 'gray';
+  }
+
+  getCategoryIcon(category: TaskCategory): string {
+    return category === TaskCategory.Work ? 'briefcase' : 'user';
+  }
+
+  isOverdue(dueDate: Date | string): boolean {
+    if (!dueDate) return false;
+    return new Date(dueDate) < new Date();
+  }
+
+  isDueToday(task: Task): boolean {
+    if (!task.dueDate) return false;
+    const today = new Date();
+    const dueDate = new Date(task.dueDate);
+    return dueDate.toDateString() === today.toDateString();
+  }
+
+  formatDate(date: Date | string): string {
+    const d = new Date(date);
+    return d.toLocaleDateString();
+  }
+
+  formatDateTime(date: Date | string): string {
+    const d = new Date(date);
+    return d.toLocaleString();
+  }
+
+  getRelativeTime(date: Date | string): string {
+    const now = new Date();
+    const taskDate = new Date(date);
+    const diffMs = now.getTime() - taskDate.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return `${Math.floor(diffDays / 30)} months ago`;
+  }
+
+  getTasksByStatus(tasks: Task[] | null, status: string): Task[] {
+    if (!tasks) return [];
+    return tasks.filter(task => task.status === status);
+  }
+
+  getTaskCountByStatus(tasks: Task[] | null, status: string): number {
+    return this.getTasksByStatus(tasks, status).length;
+  }
+
+  // Template helper methods to avoid type casting issues
+  getCategoryIconSafe(category: any): string {
+    return this.getCategoryIcon(category);
+  }
+
+  getPriorityColorSafe(priority: any): string {
+    return this.getPriorityColor(priority);
+  }
+
+  getStatusColorSafe(status: any): string {
+    return this.getStatusColor(status);
+  }
+
+  // Advanced filtering and sorting methods
+  applyQuickFilter(filter: string) {
+    this.activeFilter = filter.toLowerCase().replace(' ', '-');
+    
+    switch (filter) {
+      case 'All':
+        this.store.dispatch(clearTaskFilters());
+        break;
+      case 'My Tasks':
+        // Filter for user's own tasks (created by or assigned to user)
+        // This will be handled by a custom filter function
+        this.store.dispatch(clearTaskFilters());
+        break;
+      case 'Overdue':
+        // Filter for overdue tasks
+        this.store.dispatch(setTaskFilters({ 
+          filters: { 
+            dateRange: {
+              start: null,
+              end: new Date()
+            }
+          } 
+        }));
+        break;
+      case 'High Priority':
+        this.store.dispatch(setTaskFilters({ 
+          filters: { priority: TaskPriority.High } 
+        }));
+        break;
+      case 'Completed':
+        this.store.dispatch(setTaskFilters({ 
+          filters: { status: TaskStatus.Completed } 
+        }));
+        break;
+    }
+  }
+
+  // Utility methods for template
+  getPriorityClass(priority: string): string {
+    switch (priority) {
+      case 'critical': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+      case 'high': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+      case 'low': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300';
+    }
+  }
+
+  getPriorityIcon(priority: string): string {
+    switch (priority) {
+      case 'critical': return 'alert-triangle';
+      case 'high': return 'arrow-up';
+      case 'medium': return 'minus';
+      case 'low': return 'arrow-down';
+      default: return 'circle';
+    }
+  }
+
+  getStatusClass(status: string): string {
+    switch (status) {
+      case 'completed': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+      case 'ongoing': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+      case 'started': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+      case 'to-do': return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300';
+    }
+  }
+
+  getStatusIcon(status: string): string {
+    switch (status) {
+      case 'completed': return 'check-circle';
+      case 'ongoing': return 'play-circle';
+      case 'started': return 'play';
+      case 'to-do': return 'circle';
+      default: return 'circle';
+    }
+  }
+
+  // Permission checking methods
+  canEditTask(task: Task): boolean {
+    if (!this.currentUser) return false;
+    
+    const userRole = this.currentUser.role as Role;
+    const taskCategory = task.category as TaskCategory;
+    const isTaskCreator = task.creatorId === this.currentUser.id;
+    
+    switch (userRole) {
+      case Role.Owner:
+        return true; // Owner can edit all tasks
+      case Role.Admin:
+        return true; // Admin can edit all tasks
+      case Role.Viewer:
+        // Viewer can only edit personal tasks they created
+        return taskCategory === TaskCategory.Personal && isTaskCreator;
+      default:
+        return false;
+    }
+  }
+
+  canDeleteTask(task: Task): boolean {
+    if (!this.currentUser) return false;
+    
+    const userRole = this.currentUser.role as Role;
+    const taskCategory = task.category as TaskCategory;
+    const isTaskCreator = task.creatorId === this.currentUser.id;
+    
+    switch (userRole) {
+      case Role.Owner:
+        return true; // Only Owner can delete any task
+      case Role.Admin:
+        return false; // Admin cannot delete tasks
+      case Role.Viewer:
+        // Viewer can only delete personal tasks they created
+        return taskCategory === TaskCategory.Personal && isTaskCreator;
+      default:
+        return false;
+    }
+  }
+
+  canReassignTask(): boolean {
+    if (!this.currentUser) return false;
+    
+    const userRole = this.currentUser.role as Role;
+    
+    switch (userRole) {
+      case Role.Owner:
+      case Role.Admin:
+        return true;
+      case Role.Viewer:
+        return false;
+      default:
+        return false;
+    }
+  }
+
+  // Check if task should be visible in "My Tasks" section
+  canViewTaskInMyTasks(task: Task): boolean {
+    if (!this.currentUser) return false;
+    
+    const userRole = this.currentUser.role as Role;
+    const taskCategory = task.category as TaskCategory;
+    const isTaskCreator = task.creatorId === this.currentUser.id;
+    const isTaskAssignee = task.assigneeId === this.currentUser.id;
+    
+    // Must be either creator or assignee to see in "My Tasks"
+    if (!isTaskCreator && !isTaskAssignee) {
+      return false;
+    }
+
+    switch (userRole) {
+      case Role.Owner:
+        // Owner can see all work tasks + their own personal tasks
+        if (taskCategory === TaskCategory.Work) {
+          return true; // Can see all work tasks they created/assigned
+        } else {
+          return isTaskCreator; // Can only see personal tasks they created
+        }
+        
+      case Role.Admin:
+        // Admin can see work tasks they created/assigned + their own personal tasks
+        if (taskCategory === TaskCategory.Work) {
+          return true; // Can see all work tasks they created/assigned
+        } else {
+          return isTaskCreator; // Can only see personal tasks they created
+        }
+        
+      case Role.Viewer:
+        // Viewer can see personal tasks they created/assigned + work tasks they created/assigned
+        return true; // Can see both personal and work tasks they created or are assigned to
+        
+      default:
+        return false;
+    }
+  }
+
+  // Get tasks for "My Tasks" section
+  getMyTasks(tasks: Task[]): Task[] {
+    return tasks.filter(task => this.canViewTaskInMyTasks(task));
+  }
+
+  // Get filtered tasks based on active filter
+  getFilteredTasksForDisplay(tasks: Task[] | null): Task[] {
+    if (!tasks) return [];
+    if (this.activeFilter === 'my-tasks') {
+      return this.getMyTasks(tasks);
+    }
+    return tasks;
+  }
+
+  // Helper method to get filtered tasks length safely
+  getFilteredTasksLength(): number {
+    let length = 0;
+    this.filteredTasks$.pipe(take(1)).subscribe(tasks => {
+      length = tasks?.length || 0;
+    });
+    return length;
+  }
+
+  // Calculate completion rate
+  getCompletionRate(): number {
+    let completionRate = 0;
+    this.taskStats$.pipe(take(1)).subscribe(stats => {
+      if (stats && stats.total > 0) {
+        completionRate = Math.round((stats.completed / stats.total) * 100);
+      }
+    });
+    return completionRate;
+  }
+
+  // Edit task method
+  editTask(task: Task) {
+    if (!this.canEditTask(task)) {
+      console.warn('User does not have permission to edit this task');
+      return;
+    }
+    
+    this.selectedTask = task;
+    this.taskForm = {
+      title: task.title,
+      description: task.description || '',
+      category: task.category as any,
+      priority: task.priority as any,
+      status: task.status as any,
+      department: task.department || '',
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
+      dueTime: task.dueTime || '',
+      recurring: task.recurring || false,
+      assigneeId: task.assigneeId || ''
+    };
+    this.showEditModal = true;
+  }
+}

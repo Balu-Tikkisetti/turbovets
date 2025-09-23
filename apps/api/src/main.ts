@@ -3,16 +3,18 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
 import * as dotenv from 'dotenv';
 import { Client } from 'pg';
+import { ValidationPipe } from '@nestjs/common';
+import { databaseConfig, serverConfig } from './config/database.config';
 
 dotenv.config();
 
 async function prepareDatabase() {
-  const dbName = process.env.DB_DATABASE || 'turbovets';
+  const dbName = databaseConfig.database;
   const client = new Client({
-    user: process.env.DB_USERNAME || 'balu',
-    password: process.env.DB_PASSWORD || 'balu',
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
+    user: databaseConfig.username,
+    password: databaseConfig.password,
+    host: databaseConfig.host,
+    port: databaseConfig.port,
     database: 'postgres',
   });
 
@@ -26,9 +28,9 @@ async function prepareDatabase() {
     if (res.rowCount === 0) {
       console.log(`⚡ Database "${dbName}" not found. Creating...`);
       await client.query(`CREATE DATABASE "${dbName}"`);
-      console.log(`✅ Database "${dbName}" created successfully.`);
+      console.log(` Database "${dbName}" created successfully.`);
     } else {
-      console.log(`✅ Database "${dbName}" already exists.`);
+      console.log(`Database "${dbName}" already exists.`);
     }
   } catch (error) {
     console.error('Failed to prepare database:', error);
@@ -46,12 +48,44 @@ async function bootstrap() {
   
   
   app.enableCors({
-    origin: 'http://localhost:4200', 
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Origin',
+      'X-Requested-With',
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'Cache-Control',
+      'Pragma',
+      'X-CSRF-Token',
+      'X-Access-Token',
+      'X-Refresh-Token'
+    ],
+    exposedHeaders: [
+      'Authorization',
+      'X-Total-Count',
+      'X-Page-Count',
+      'X-Current-Page',
+      'X-Per-Page',
+      'X-Access-Token',
+      'X-Refresh-Token'
+    ],
     credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204
   });
 
-  const port = process.env.PORT || 3000;
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+    transformOptions: {
+      enableImplicitConversion: true,
+    },
+  }));
+
+  const port = serverConfig.port;
   await app.listen(port);
   Logger.log(
     `Application is running on: http://localhost:${port}/${globalPrefix}`

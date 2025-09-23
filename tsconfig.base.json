@@ -1,7 +1,6 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "rootDir": ".",
     "sourceMap": true,
     "declaration": false,
     "moduleResolution": "node",
@@ -15,8 +14,9 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@turbovets/auth": ["auth/src/index.ts"],
-      "@turbovets/data": ["data/src/index.ts"]
+      "@turbovets/auth": ["libs/auth/src/index.ts"],
+      "@turbovets/auth/backend": ["libs/auth/src/backend.ts"],
+      "@turbovets/data": ["libs/data/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

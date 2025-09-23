@@ -1,0 +1,89 @@
+<div class="analytics-page">
+  <!-- Access Control Check -->
+  @if (!canAccessAnalytics(currentUser$ | async)) {
+    <div class="access-denied">
+      <h2>Access Denied</h2>
+      <p>You don't have permission to access the Analytics dashboard.</p>
+      <p>Only <strong>Owners</strong> and <strong>Admins</strong> can view analytics data.</p>
+      <button (click)="goToDashboard()" class="btn-primary">Back to Dashboard</button>
+    </div>
+  } @else {
+    <!-- Simple Header -->
+    <div class="page-header">
+      <h1>Analytics</h1>
+      <div class="controls">
+        <select [(ngModel)]="selectedTimeRange" (ngModelChange)="onTimeRangeChange()" class="time-select">
+          @for (range of timeRanges; track range.value) {
+            <option [value]="range.value">{{ range.label }}</option>
+          }
+        </select>
+        <button (click)="refreshAnalytics()" class="refresh-btn">Refresh</button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    @if (analyticsLoading$ | async) {
+      <div class="loading">Loading analytics data...</div>
+    }
+
+    <!-- Analytics Table -->
+    @if ((analyticsLoading$ | async) === false && (analyticsData$ | async)) {
+      <div class="analytics-table-container">
+        <div class="table-summary">
+          <span>{{ totalCount$ | async }} total logs</span>
+        </div>
+        
+        <table class="analytics-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>User</th>
+              <th>Role</th>
+              <th>Action</th>
+              <th>Resource</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (log of auditLogs$ | async; track log.id) {
+              <tr>
+                <td class="timestamp">
+                  {{ formatDateTime(log.createdAt) }}
+                  <small>{{ getRelativeTime(log.createdAt) }}</small>
+                </td>
+                <td>{{ log.username || 'Unknown' }}</td>
+                <td>
+                  <span class="role-badge" [class]="getRoleColor(log.userRole)">
+                    {{ log.userRole }}
+                  </span>
+                </td>
+                <td>
+                  <span class="action-badge" [class]="getActionColor(log.action)">
+                    {{ log.action | titlecase }}
+                  </span>
+                </td>
+                <td>{{ log.resource }}</td>
+                <td class="description">{{ log.description }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        
+        @if ((auditLogs$ | async)?.length === 0) {
+          <div class="no-data">
+            <p>No audit logs found for the selected time range.</p>
+          </div>
+        }
+      </div>
+    }
+  }
+
+  <!-- Error State -->
+  @if (analyticsError$ | async; as error) {
+    <div class="error">
+      <h3>Error Loading Analytics</h3>
+      <p>{{ error }}</p>
+      <button (click)="refreshAnalytics()" class="btn-primary">Retry</button>
+    </div>
+  }
+</div>

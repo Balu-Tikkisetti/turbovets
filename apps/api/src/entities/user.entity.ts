@@ -6,10 +6,14 @@ import {
   UpdateDateColumn,
   Index,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 
-import { Role } from '../../../../libs/data/src/lib/enums/role.enum';
+import { Role } from '@turbovets/data';
 import { Task } from './task.entity';
+import { AuditLog } from './audit-log.entity';
+import { Department } from './department.entity';
 
 @Entity('users')
 @Index(['email'], { unique: true })
@@ -32,8 +36,27 @@ export class User {
   @Column({ type: 'enum', enum: Role, default: Role.Viewer })
   role: Role;
 
+  @Column({ length: 255, nullable: true })
+  department: string;
+
+  @Column({ nullable: true })
+  departmentId: string;
+
+  @ManyToOne(() => Department, (department) => department.members)
+  @JoinColumn({ name: 'departmentId' })
+  departmentEntity: Department;
+
   @Column({ type: 'timestamp', nullable: true })
   lastLoginAt: Date;
+
+  @Column({ type: 'text', nullable: true })
+  refreshToken: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  refreshTokenExpiresAt: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastActivityAt: Date;
 
   @CreateDateColumn()
   createdAt: Date;
@@ -41,11 +64,12 @@ export class User {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  // A user can be an assignee for multiple tasks
   @OneToMany(() => Task, (task) => task.assignee)
   assignedTasks: Task[];
 
-  // A user can be the creator of multiple tasks
   @OneToMany(() => Task, (task) => task.creator)
   createdTasks: Task[];
+
+  @OneToMany(() => AuditLog, (auditLog) => auditLog.user)
+  auditLogs: AuditLog[];
 }

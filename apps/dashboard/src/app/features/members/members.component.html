@@ -1,0 +1,213 @@
+<div class="members-container">
+  <!-- Header Section -->
+  <div class="header-section">
+
+    <div class="stats-section">
+      <div class="stat-item">
+        <span class="status-indicator online"></span>
+        {{ onlineCount }} online
+      </div>
+      <div class="stat-item">
+        Total: {{ members.length }} members
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters Section -->
+  <div class="filters-section">
+    <div class="filters-header">
+      <h3>Filters</h3>
+      <button (click)="clearFilters()" class="clear-filters-btn">Clear All</button>
+    </div>
+    <div class="filters-grid">
+      <div class="filter-input">
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          (ngModelChange)="applyFilters()"
+          placeholder="Search members..."
+        >
+      </div>
+      <div class="filter-input">
+        <select [(ngModel)]="selectedRole" (ngModelChange)="applyFilters()">
+          <option value="">All Roles</option>
+          <option value="Owner">Owner</option>
+          <option value="Admin">Admin</option>
+          <option value="Viewer">Viewer</option>
+        </select>
+      </div>
+      <div class="filter-input">
+        <select [(ngModel)]="selectedDepartment" (ngModelChange)="applyFilters()">
+          <option value="">All Departments</option>
+          @for (dept of departments; track dept) {
+            <option [value]="dept">{{ dept }}</option>
+          }
+        </select>
+      </div>
+      <div class="filter-input">
+        <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilters()">
+          <option value="">All Status</option>
+          <option value="online">Online</option>
+          <option value="offline">Offline</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Members Grid -->
+  <div class="members-grid">
+    @if (filteredMembers.length > 0) {
+      @for (member of filteredMembers; track member.id) {
+        <div class="member-card">
+          <!-- Member Header -->
+          <div class="member-header">
+            <div class="avatar-container">
+              <div class="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+                {{ member.username.charAt(0).toUpperCase() }}
+              </div>
+              <div
+                class="status-dot"
+                [class]="member.isOnline ? 'online' : 'offline'"
+              ></div>
+            </div>
+            <div class="member-info">
+              <h3 class="member-name">{{ member.username }}</h3>
+              <p class="member-status">
+                {{ member.isOnline ? 'Online' : 'Offline' }}
+                @if (!member.isOnline && member.lastSeen) {
+                  <span class="last-seen">
+                    ({{ getLastSeenText(member.lastSeen) }})
+                  </span>
+                }
+              </p>
+            </div>
+          </div>
+
+          <!-- Member Details -->
+          <div class="member-details">
+            <div class="detail-row">
+              <span class="detail-label">Role:</span>
+              <span
+                class="detail-value role-badge"
+                [class]="getRoleBadgeClass(member.role)"
+              >
+                {{ member.role }}
+              </span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Department:</span>
+              <span class="detail-value">
+                {{ member.department || 'Unassigned' }}
+              </span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Email:</span>
+              <span class="detail-value truncate">{{ member.email }}</span>
+            </div>
+          </div>
+
+          <!-- Action Buttons (Only for Owners) -->
+          @if (canManageUsers) {
+            <div class="member-actions">
+              <button
+                (click)="openEditModal(member)"
+                class="edit-button"
+              >
+                Edit Member
+              </button>
+            </div>
+          }
+        </div>
+      }
+    } @else {
+      <div class="empty-state">
+        <i data-lucide="users" class="empty-icon"></i>
+        <h3 class="empty-title">No members found</h3>
+        <p class="empty-description">Try adjusting your search or filter criteria</p>
+      </div>
+    }
+  </div>
+
+<!-- Edit Member Modal -->
+@if (showEditModal) {
+  <div
+    class="edit-modal"
+    tabindex="0"
+    role="dialog"
+    aria-modal="true"
+    (click)="closeEditModal()"
+    (keyup.escape)="closeEditModal()"
+  >
+    <div
+      class="modal-content"
+      tabindex="0"
+      (click)="$event.stopPropagation()"
+      (keyup.escape)="closeEditModal()"
+      role="document"
+    >
+      <div class="modal-header">
+        <h3 class="modal-title">
+          Edit Member: {{ selectedMember?.username }}
+        </h3>
+      </div>
+      
+      <div class="modal-body">
+        <!-- Role Selection -->
+        <div class="form-group">
+          <label class="form-label" for="edit-role-select">Role</label>
+          <select
+            id="edit-role-select"
+            [(ngModel)]="editForm.role"
+            class="form-select"
+          >
+            <option value="Viewer">Viewer</option>
+            <option value="Admin">Admin</option>
+            <option value="Owner">Owner</option>
+          </select>
+        </div>
+
+        <!-- Department Selection -->
+        <div class="form-group">
+          <label class="form-label" for="edit-department-select">
+            Department
+            @if (editForm.role === 'Admin') {
+              <span class="required-indicator">*</span>
+            }
+          </label>
+          <select
+            id="edit-department-select"
+            [(ngModel)]="editForm.department"
+            class="form-select"
+            [class.error]="editForm.role === 'Admin' && !editForm.department"
+          >
+            <option value="">Unassigned</option>
+            @for (dept of departments; track dept) {
+              <option [value]="dept">{{ dept }}</option>
+            }
+          </select>
+          @if (editForm.role === 'Admin' && !editForm.department) {
+            <div class="error-message">Department is required for Admin role</div>
+          }
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button
+          type="button"
+          (click)="closeEditModal()"
+          class="btn btn-secondary"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          (click)="saveMemberChanges()"
+          [disabled]="isSaving || (editForm.role === 'Admin' && !editForm.department)"
+          class="btn btn-primary"
+        >
+          {{ isSaving ? 'Saving...' : 'Save Changes' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

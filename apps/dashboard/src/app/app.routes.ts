@@ -18,13 +18,15 @@ export const appRoutes: Routes = [
     ]
   },
   
- 
   {
     path: 'dashboard',
     component: DashboardComponent,
     canActivate: [AuthGuard] 
   },
 
-
+  // Wildcard route - must be last
+  { path: '**', redirectTo: '/auth/login' },
+  
+  // Default route - must be after wildcard
   { path: '', redirectTo: '/auth/login', pathMatch: 'full' }
 ];

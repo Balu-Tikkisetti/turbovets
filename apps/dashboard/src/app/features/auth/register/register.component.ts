@@ -1,19 +1,25 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { RegisterUserDto } from "libs/data/dto/register-user.dto";
+import { RegisterUserDto } from "@turbovets/data";
 import { AuthService } from '../../../core/services/auth.service';
-import { HttpClientModule } from '@angular/common/http';
+
+interface HttpError {
+  status: number;
+  message?: string;
+}
 
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [RouterLink, FormsModule, CommonModule, HttpClientModule],
+  imports: [RouterLink, FormsModule, CommonModule],
   templateUrl: './register.component.html'
 })
 export class RegisterComponent {
+  private authService = inject(AuthService);
+  private router = inject(Router);
 
   registerData: RegisterUserDto & { confirmPassword: string } = {
     username: '',
@@ -22,24 +28,32 @@ export class RegisterComponent {
     confirmPassword: ''
   };
 
-  constructor(private authService: AuthService, private router: Router) { }
-
   onSubmit(form: NgForm) {
     // The form's validity is checked directly in the template's [disabled] binding.
     // Here, we just need to ensure all conditions are met before proceeding.
     if (form.valid && this.passwordsMatch() && this.isPasswordStrong()) {
       this.authService.register(this.registerData).subscribe({
-        next: (response: any) => {
-          console.log('Registration successful:', response);
-          this.router.navigate(['/login']);
+        next: () => {
+          alert('Registration successful! You can now sign in with your credentials.');
+          this.router.navigate(['auth/login']);
         },
-        error: (error: any) => {
-          console.error('Registration failed:', error);
-      
+        error: (error: HttpError) => {
+          // Handle different types of registration errors
+          if (error?.status === 409) {
+            alert('Username or email already exists. Please choose different credentials.');
+          } else if (error?.status === 400) {
+            alert('Invalid registration data. Please check your information and try again.');
+          } else if (error?.status === 0) {
+            alert('Unable to connect to the server. Please check your internet connection and try again.');
+          } else if (error?.status >= 500) {
+            alert('Server error occurred. Please try again later or contact support if the problem persists.');
+          } else {
+            alert('Registration failed. Please try again.');
+          }
         }
       });
     } else {
-      console.log('Form is invalid');
+      alert('Please fill in all fields correctly and ensure your password meets the requirements.');
       // Mark all controls as touched to trigger validation messages on the template
       Object.keys(form.controls).forEach(key => {
         form.controls[key].markAsTouched();

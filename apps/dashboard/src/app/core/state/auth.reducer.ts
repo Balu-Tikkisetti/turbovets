@@ -1,5 +1,5 @@
 import { createAction, createReducer, on, createSelector, createFeatureSelector } from '@ngrx/store';
-import { UserDto } from 'libs/data/src/lib/dto/user.dto';
+import { UserDto } from '@turbovets/data';
 
 export interface AuthState {
   user: UserDto | null;
@@ -8,13 +8,13 @@ export interface AuthState {
 
 const getInitialState = (): AuthState => {
   try {
-    const userString = localStorage.getItem('currentUser');
+    const userString = sessionStorage.getItem('currentUser');
     if (userString) {
       const user: UserDto = JSON.parse(userString);
       return { user, isLoggedIn: true };
     }
   } catch (e) {
-    console.error('Could not load user from localStorage', e);
+    console.error('Could not load user from sessionStorage', e);
   }
   return { user: null, isLoggedIn: false };
 };
@@ -28,14 +28,23 @@ export const loginSuccess = createAction(
 
 export const logout = createAction('[Auth] Logout');
 
+export const updateCurrentUser = createAction(
+  '[Auth] Update Current User',
+  (user: UserDto) => ({ user })
+);
+
 export const authReducer = createReducer(
   initialState,
   on(loginSuccess, (state, { user }) => {
-    localStorage.setItem('currentUser', JSON.stringify(user));
+    sessionStorage.setItem('currentUser', JSON.stringify(user));
+    return { ...state, user, isLoggedIn: true };
+  }),
+  on(updateCurrentUser, (state, { user }) => {
+    sessionStorage.setItem('currentUser', JSON.stringify(user));
     return { ...state, user, isLoggedIn: true };
   }),
   on(logout, (state) => {
-    localStorage.removeItem('currentUser');
+    sessionStorage.removeItem('currentUser');
     return { ...state, user: null, isLoggedIn: false };
   })
 );

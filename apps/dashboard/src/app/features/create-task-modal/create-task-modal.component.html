@@ -20,7 +20,7 @@
     </button>
 
     <div class="mb-8 border-b border-gray-200 dark:border-gray-700 pb-4">
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
         Create New Task
       </h1>
       <p class="text-gray-600 dark:text-gray-400">
@@ -31,19 +31,21 @@
     <div
       class="bg-gray-100 rounded-lg p-1 mb-6 flex space-x-1 dark:bg-gray-900"
     >
-      <button
-        type="button"
-        (click)="setActiveTab('work')"
-        [ngClass]="{
-          'bg-white dark:bg-gray-800 text-blue-600 shadow-md':
-            activeTab === 'work',
-          'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white':
-            activeTab !== 'work'
-        }"
-        class="flex-1 px-4 py-2 font-medium rounded-md transition-colors duration-200"
-      >
+      @if (currentUser?.role !== 'Viewer') {
+        <button
+          type="button"
+          (click)="setActiveTab('work')"
+          [ngClass]="{
+            'bg-white dark:bg-gray-800 text-blue-600 shadow-md':
+              activeTab === 'work',
+            'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white':
+              activeTab !== 'work'
+          }"
+          class="flex-1 px-4 py-2 font-medium rounded-md transition-colors duration-200"
+        >
         Work 
-      </button>
+        </button>
+      }
       <button
         type="button"
         (click)="setActiveTab('personal')"
@@ -53,7 +55,7 @@
           'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white':
             activeTab !== 'personal'
         }"
-        class="flex-1 px-4 py-2 font-medium rounded-md transition-colors duration-200"
+        [class]="currentUser?.role === 'Viewer' ? 'w-full px-4 py-2 font-medium rounded-md transition-colors duration-200' : 'flex-1 px-4 py-2 font-medium rounded-md transition-colors duration-200'"
       >
         Personal
       </button>
@@ -78,32 +80,42 @@
               placeholder="Enter task title..."
               class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white"
             />
-            <div
-              *ngIf="isFieldInvalid('title')"
-              class="mt-1 text-sm text-red-600 dark:text-red-400"
-            >
-              {{ getFieldError("title") }}
-            </div>
+            @if (isFieldInvalid('title')) {
+              <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                {{ getFieldError("title") }}
+              </div>
+            }
           </div>
            
-          <div *ngIf="activeTab === 'work'">
-            <label
-              for="department"
-              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-            >
-              Department
-            </label>
-            <select
-              id="department"
-              formControlName="department"
-              [disabled]="!canChangeDepartment"
-              class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-            >
-              <option *ngFor="let dept of departments" [value]="dept">
-                {{ dept }}
-              </option>
-            </select>
-          </div>
+          @if (activeTab === 'work') {
+            <div>
+              <label
+                for="department"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                Department *
+              </label>
+              <select
+                id="department"
+                formControlName="department"
+                [disabled]="!canChangeDepartment || isLoadingDepartments"
+                (change)="onDepartmentChange($any($event.target).value)"
+                class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white disabled:opacity-50"
+              >
+                <option value="" disabled>Select Department</option>
+                @for (dept of departments; track dept) {
+                  <option [value]="dept">
+                    {{ dept }}
+                  </option>
+                }
+              </select>
+              @if (isLoadingDepartments) {
+                <div class="mt-1 text-sm text-blue-600 dark:text-blue-400">
+                  Loading departments...
+                </div>
+              }
+            </div>
+          }
 
           <div class="lg:col-span-2">
             <label
@@ -133,268 +145,190 @@
               formControlName="priority"
               class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white"
             >
-              <option
-                *ngFor="let priority of priorities"
-                [value]="priority.value"
+              @for (priority of priorities; track priority.value) {
+                <option [value]="priority.value">
+                  {{ priority.label }}
+                </option>
+              }
+            </select>
+          </div>
+
+          @if (activeTab === 'work') {
+            <div>
+              <label
+                for="status"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
-                {{ priority.label }}
-              </option>
-            </select>
-          </div>
-
-          <div *ngIf="activeTab === 'work'">
-            <label
-              for="status"
-              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-            >
-              Status
-            </label>
-            <select
-              id="status"
-              formControlName="status"
-              class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-            >
-              <option
-                *ngFor="let status of statuses"
-                [value]="status.value"
+                Status
+              </label>
+              <select
+                id="status"
+                formControlName="status"
+                class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white"
               >
-                {{ status.label }}
-              </option>
-            </select>
-          </div>
+                @for (status of statuses; track status.value) {
+                  <option [value]="status.value">
+                    {{ status.label }}
+                  </option>
+                }
+              </select>
+            </div>
+          }
 
-          <div *ngIf="activeTab === 'personal'">
-            <label
-              for="startDate"
-              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-            >
-              Start Date *
-            </label>
-            <input
-              id="startDate"
-              type="date"
-              formControlName="startDate"
-              class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-            />
-            <div
-              *ngIf="isFieldInvalid('startDate')"
-              class="mt-1 text-sm text-red-600 dark:text-red-400"
-            >
-              Start date is required.
+          @if (activeTab === 'personal') {
+            <div>
+              <label
+                for="startDate"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                Start Date *
+              </label>
+              <input
+                id="startDate"
+                type="date"
+                formControlName="startDate"
+                class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white"
+              />
+              @if (isFieldInvalid('startDate')) {
+                <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                  Start date is required.
+                </div>
+              }
             </div>
-          </div>
+          }
 
-          <div *ngIf="activeTab === 'personal'">
-            <label
-              for="startTime"
-              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-            >
-              Start Time *
-            </label>
-            <input
-              id="startTime"
-              type="time"
-              formControlName="startTime"
-              class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-            />
-            <div
-              *ngIf="isFieldInvalid('startTime')"
-              class="mt-1 text-sm text-red-600 dark:text-red-400"
-            >
-              Start time is required.
+          @if (activeTab === 'personal') {
+            <div>
+              <label
+                for="startTime"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                Start Time *
+              </label>
+              <input
+                id="startTime"
+                type="time"
+                formControlName="startTime"
+                class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white"
+              />
+              @if (isFieldInvalid('startTime')) {
+                <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                  Start time is required.
+                </div>
+              }
             </div>
-          </div>
+          }
           
-          <div *ngIf="activeTab === 'work' || (activeTab === 'personal' && !isRecurring)">
-            <label
-              for="dueDate"
-              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-            >
-              {{ activeTab === 'personal' ? 'End Date' : 'Due Date' }} *
-            </label>
-            <input
-              id="dueDate"
-              type="date"
-              formControlName="dueDate"
-              class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-            />
-            <div
-              *ngIf="isFieldInvalid('dueDate')"
-              class="mt-1 text-sm text-red-600 dark:text-red-400"
-            >
-              {{ getFieldError("dueDate") }}
+          @if (activeTab === 'work' || (activeTab === 'personal' && !isRecurring)) {
+            <div>
+              <label
+                for="dueDate"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                {{ activeTab === 'personal' ? 'End Date' : 'Due Date' }} *
+              </label>
+              <input
+                id="dueDate"
+                type="date"
+                formControlName="dueDate"
+                class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white"
+              />
+              @if (isFieldInvalid('dueDate')) {
+                <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {{ getFieldError("dueDate") }}
+                </div>
+              }
             </div>
-          </div>
+          }
 
-          <div *ngIf="activeTab === 'work' || activeTab === 'personal'">
-            <label
-              for="dueTime"
-              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-            >
-              {{ activeTab === 'personal' ? 'End Time' : 'Due Time' }} *
-            </label>
-            <input
-              id="dueTime"
-              type="time"
-              formControlName="dueTime"
-              class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-            />
-            <div
-              *ngIf="isFieldInvalid('dueTime')"
-              class="mt-1 text-sm text-red-600 dark:text-red-400"
-            >
-              {{ getFieldError("dueTime") }}
+          @if (activeTab === 'work' || activeTab === 'personal') {
+            <div>
+              <label
+                for="dueTime"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                {{ activeTab === 'personal' ? 'End Time' : 'Due Time' }} *
+              </label>
+              <input
+                id="dueTime"
+                type="time"
+                formControlName="dueTime"
+                class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white"
+              />
+              @if (isFieldInvalid('dueTime')) {
+                <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                  {{ getFieldError("dueTime") }}
+                </div>
+              }
             </div>
-          </div>
+          }
           
-          <div *ngIf="activeTab === 'personal'" class="flex items-center space-x-2">
-            <input
-              id="recurring"
-              type="checkbox"
-              formControlName="recurring"
-              class="h-4 w-4 text-blue-600 rounded"
-            />
-            <label
-              for="recurring"
-              class="text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
-              Daily recurring task
-            </label>
-          </div>
+          @if (activeTab === 'personal') {
+            <div class="flex items-center space-x-2">
+              <input
+                id="recurring"
+                type="checkbox"
+                formControlName="recurring"
+                class="h-4 w-4 text-blue-600 rounded"
+              />
+              <label
+                for="recurring"
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Daily recurring task
+              </label>
+            </div>
+          }
           
-          <div *ngIf="activeTab === 'work'">
-            <label
-              for="assignee"
-              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-            >
-              Assign to User
-            </label>
-            <select
-              id="assignee"
-              formControlName="assignee"
-              class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-            >
-              <option *ngFor="let user of availableAssignees" [value]="user.id">
-                {{ user.username }}
-              </option>
-            </select>
-          </div>
+          @if (activeTab === 'work') {
+            <div>
+              <label
+                for="assignee"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                Assign to User
+                @if (userPermissions?.canAssignTasks) {
+                  <span class="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                    (Admins first, then Viewers)
+                  </span>
+                }
+              </label>
+              <select
+                id="assignee"
+                formControlName="assignee"
+                [disabled]="!userPermissions?.canAssignTasks || isLoadingUsers"
+                class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white disabled:opacity-50"
+              >
+                <option value="" disabled>Select User</option>
+                @for (user of availableAssignees; track user.id) {
+                  <option [value]="user.id">
+                    {{ user.username }}
+                    <span class="text-xs text-gray-500 dark:text-gray-400">
+                      ({{ user.role }})
+                    </span>
+                  </option>
+                }
+              </select>
+              @if (isLoadingUsers) {
+                <div class="mt-1 text-sm text-blue-600 dark:text-blue-400">
+                  Loading users...
+                </div>
+              }
+              @if (!userPermissions?.canAssignTasks) {
+                <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  You don't have permission to assign tasks
+                </div>
+              }
+              @if (availableAssignees.length === 0 && userPermissions?.canAssignTasks && !isLoadingUsers) {
+                <div class="mt-1 text-sm text-yellow-600 dark:text-yellow-400">
+                  No users available for assignment in this department
+                </div>
+              }
+            </div>
+          }
           
         </section>
 
-        <section
-          class="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
-        >
-          <div>
-            <label
-              for="relatedTasks"
-              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-            >
-              Related Tasks
-            </label>
-            <select
-              id="relatedTasks"
-              formControlName="relatedTasks"
-              multiple
-              class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-            >
-              <option
-                *ngFor="let task of mockTasks"
-                [value]="task.id"
-              >
-                {{ task.title }}
-              </option>
-            </select>
-          </div>
-          
-          <div>
-            <label
-              for="links"
-              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              >Links</label
-            >
-            <div formArrayName="links">
-              <div
-                *ngFor="let link of links.controls; let i = index"
-                [formGroupName]="i"
-                class="flex gap-2 mb-2"
-              >
-                <input
-                  type="url"
-                  formControlName="url"
-                  placeholder="Enter a URL"
-                  class="flex-1 px-4 py-2 border rounded-lg dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-                />
-                <button
-                  type="button"
-                  (click)="removeLink(i)"
-                  class="text-red-500 hover:text-red-700 transition-colors"
-                >
-                  <svg
-                    class="w-5 h-5"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fill-rule="evenodd"
-                      d="M9 2a1 1 0 00-1 1v1H5a1 1 0 000 2h14a1 1 0 000-2h-3V3a1 1 0 00-1-1H9zm-3 8a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1z"
-                      clip-rule="evenodd"
-                    ></path>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <button
-              type="button"
-              (click)="addLink()"
-              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Add Link
-            </button>
-          </div>
-
-          <div>
-            <label for="media" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Media (Files)
-            </label>
-            <div formArrayName="media">
-              <div
-                *ngFor="let mediaGroup of media.controls; let i = index"
-                class="flex items-center gap-2 mb-2"
-              >
-                <input id="media" type="file"
-                  (change)="onFileSelected($event, i)"
-                  class="flex-1 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all dark:file:bg-blue-900/20 dark:file:text-blue-300 dark:hover:file:bg-blue-900/30"
-                />
-                <span class="text-sm text-gray-500 dark:text-gray-400">{{ mediaGroup.value.name }}</span>
-                <button
-                  type="button"
-                  (click)="removeMedia(i)"
-                  class="text-red-500 hover:text-red-700 transition-colors"
-                >
-                  <svg
-                    class="w-5 h-5"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fill-rule="evenodd"
-                      d="M9 2a1 1 0 00-1 1v1H5a1 1 0 000 2h14a1 1 0 000-2h-3V3a1 1 0 00-1-1H9zm-3 8a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1z"
-                      clip-rule="evenodd"
-                    ></path>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <button
-              type="button"
-              (click)="addMedia()"
-              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Add Media
-            </button>
-          </div>
-        </section>
       </div>
 
       <div
@@ -413,10 +347,10 @@
               type="submit"
               [disabled]="taskForm.invalid"
               [class]="
-                'px-6 py-2 text-white rounded-lg transition-colors ' +
+                'px-6 py-2.5 text-white rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 ' +
                 (taskForm.invalid
                   ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700')
+                  : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700')
               "
             >
               Create Task

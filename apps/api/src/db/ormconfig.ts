@@ -1,18 +1,22 @@
 import { DataSourceOptions } from 'typeorm';
 import * as dotenv from 'dotenv';
 import { User } from '../entities/user.entity';
+import { Task } from '../entities/task.entity';
+import { AuditLog } from '../entities/audit-log.entity';
+import { Department } from '../entities/department.entity';
+import { databaseConfig } from '../config/database.config';
 
 dotenv.config();
 
 const config: DataSourceOptions = {
   type: 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  username: process.env.DB_USERNAME || 'balu',
-  password: process.env.DB_PASSWORD || 'balu',
-  database: process.env.DB_DATABASE || 'turbovets',
-  entities: [User],
-  synchronize: true,  // ⚠️ dev only
+  host: databaseConfig.host,
+  port: databaseConfig.port,
+  username: databaseConfig.username,
+  password: databaseConfig.password,
+  database: databaseConfig.database,
+  entities: [User, Task, AuditLog, Department],
+  synchronize: true,
   logging: true,
 };
 

@@ -1,21 +1,17 @@
 import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    CreateDateColumn,
-    UpdateDateColumn,
-    ManyToOne,
-    JoinColumn,
-    Index,
-  } from 'typeorm';
-  import { User } from './user.entity';
-  import {TaskStatus} from 'libs/data/src/lib/enums/task-status.enum';
-  import {TaskPriority} from 'libs/data/src/lib/enums/task-priority.enum';
-  import {TaskCategory} from 'libs/data/src/lib/enums/task-category.enum';
-  
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Index,
+} from 'typeorm';
+import { User } from './user.entity';
+import {TaskStatus,TaskPriority,TaskCategory } from '@turbovets/data';
 
-  
-  @Entity('tasks')
+@Entity('tasks')
 @Index(['category', 'creatorId'])
 export class Task {
   @PrimaryGeneratedColumn('uuid')
@@ -24,19 +20,20 @@ export class Task {
   @Column({ length: 255 })
   title: string;
 
- 
   @Column({ type: 'text', nullable: true })
   description: string;
 
   @Column({ type: 'enum', enum: TaskPriority, default: TaskPriority.Medium })
   priority: TaskPriority;
 
- 
   @Column({ type: 'enum', enum: TaskStatus, nullable: true })
   status: TaskStatus;
 
   @Column({ type: 'enum', enum: TaskCategory })
   category: TaskCategory;
+
+  @Column({ length: 255, nullable: true })
+  department: string;
 
   @Column({ type: 'date', nullable: true })
   startDate: Date;
@@ -53,7 +50,6 @@ export class Task {
   @Column({ type: 'boolean', default: false })
   recurring: boolean;
 
-  
   @Column({ nullable: true })
   assigneeId: string;
 
@@ -61,7 +57,6 @@ export class Task {
   @JoinColumn({ name: 'assigneeId' })
   assignee: User;
 
-  // Relates to the User entity for the creator
   @Column()
   creatorId: string;
 
@@ -69,17 +64,6 @@ export class Task {
   @JoinColumn({ name: 'creatorId' })
   creator: User;
 
-  // Links as a JSON array
-  @Column({ type: 'json', nullable: true })
-  links: { url: string }[];
-
-  // Media files as a JSON array
-  @Column({ type: 'json', nullable: true })
-  media: { name: string; url: string }[];
-
-  // Related tasks as a JSON array of IDs
-  @Column({ type: 'json', nullable: true })
-  relatedTasks: string[];
 
   @CreateDateColumn()
   createdAt: Date;

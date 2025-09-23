@@ -43,7 +43,11 @@ export function app(): express.Express {
         providers: [{ provide: APP_BASE_HREF, useValue: baseUrl }],
       })
       .then((html) => res.send(html))
-      .catch((err) => next(err));
+      .catch((err) => {
+        console.error('SSR Error:', err);
+        // Fallback to client-side rendering
+        res.sendFile(indexHtml);
+      });
   });
 
   return server;

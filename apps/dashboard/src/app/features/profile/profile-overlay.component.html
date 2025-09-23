@@ -1,0 +1,107 @@
+<!-- Overlay Background -->
+@if (isVisible) {
+  <div 
+    class="profile-overlay-backdrop"
+    tabindex="0"
+    role="button"
+    aria-label="Close profile overlay"
+    (click)="onCloseOverlay()"
+    (keydown)="($event.key === 'Enter' || $event.key === ' ') && onCloseOverlay()"
+  ></div>
+}
+
+<!-- Profile Overlay -->
+@if (isVisible) {
+  <div 
+    class="profile-overlay-container"
+    tabindex="0"
+    role="dialog"
+    aria-modal="true"
+    (click)="$event.stopPropagation()"
+    (keydown.escape)="onCloseOverlay()"
+  >
+    <!-- Close Button -->
+    <button 
+      (click)="onCloseOverlay()"
+      (keydown)="($event.key === 'Enter' || $event.key === ' ') && onCloseOverlay()"
+      class="close-button"
+      aria-label="Close profile overlay"
+    >
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+      </svg>
+    </button>
+
+    <!-- Profile Content -->
+    <div class="profile-content">
+      <!-- Profile Header -->
+      <div class="profile-header">
+        <div class="profile-avatar">
+          <div class="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-lg">
+            {{ ((currentUser$ | async)?.username || 'U').charAt(0).toUpperCase() }}
+          </div>
+          <div class="online-indicator"></div>
+        </div>
+        <div class="profile-info">
+          <h2 class="profile-name">{{ (currentUser$ | async)?.username || 'Loading...' }}</h2>
+          <p class="profile-role capitalize">{{ (currentUser$ | async)?.role || 'Loading...' }}</p>
+          <span 
+            class="role-badge"
+            [ngClass]="getRoleBadgeClass((currentUser$ | async)?.role)"
+          >
+            {{ (currentUser$ | async)?.role || 'Loading...' }}
+          </span>
+        </div>
+      </div>
+
+      <!-- User Information -->
+      <div class="user-info-section">
+        @if (isLoading) {
+          <div class="text-center py-4">
+            <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Loading profile details...</p>
+          </div>
+        }
+        
+        @if (!isLoading) {
+          <div>
+            <div class="info-item">
+              <span class="info-label">Username:</span>
+              <span class="info-value">{{ (profileDetails$ | async)?.username || (currentUser$ | async)?.username || 'Loading...' }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Email:</span>
+              <span class="info-value">{{ (profileDetails$ | async)?.email || 'Not provided' }}</span>
+            </div>
+            <!-- Password field removed for security reasons -->
+            <div class="info-item">
+              <span class="info-label">Role:</span>
+              <span class="info-value capitalize">{{ (profileDetails$ | async)?.role || (currentUser$ | async)?.role || 'Loading...' }}</span>
+            </div>
+            @if ((profileDetails$ | async)?.role !== 'Owner' && (currentUser$ | async)?.role !== 'Owner') {
+              <div class="info-item">
+                <span class="info-label">Department:</span>
+                <span class="info-value">{{ (profileDetails$ | async)?.department || (currentUser$ | async)?.department || 'Not assigned' }}</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Logout Button -->
+      <div class="logout-section">
+        <button
+          (click)="onLogout()"
+          (keydown)="($event.key === 'Enter' || $event.key === ' ') && onLogout()"
+          class="logout-btn"
+          aria-label="Sign out"
+        >
+          <svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+          </svg>
+          Sign Out
+        </button>
+      </div>
+    </div>
+  </div>
+}

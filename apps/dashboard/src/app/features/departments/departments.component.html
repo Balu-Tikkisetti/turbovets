@@ -1,0 +1,381 @@
+<div class="departments-container">
+  <!-- Header -->
+  <div class="flex justify-between items-center mb-8">
+
+    
+    @if (canManageDepartments(currentUser$ | async)) {
+      <button 
+        (click)="openCreateModal()"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center space-x-2 shadow-lg"
+      >
+        <i data-lucide="plus" class="w-5 h-5"></i>
+        <span>Add Department</span>
+      </button>
+    }
+  </div>
+
+
+  <!-- Loading State -->
+  @if (loading) {
+    <div class="flex items-center justify-center p-12">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <span class="ml-3 text-gray-600 dark:text-gray-400">Loading departments...</span>
+    </div>
+  }
+
+  <!-- Error State -->
+  @if (error) {
+    <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 mb-6">
+      <div class="flex items-center">
+        <i data-lucide="alert-circle" class="w-5 h-5 text-red-600 dark:text-red-400 mr-3"></i>
+        <p class="text-red-800 dark:text-red-200">{{ error }}</p>
+      </div>
+      <button 
+        (click)="loadDepartments()"
+        class="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
+      >
+        Retry
+      </button>
+    </div>
+  }
+
+  <!-- Departments Grid -->
+  @if (!loading && !error) {
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      @for (department of departments; track department.id) {
+        <div class="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+          <!-- Department Header -->
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center" [style.background-color]="department.color">
+                <i data-lucide="building" class="w-5 h-5 text-white"></i>
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ department.name }}</h3>
+                <div class="flex items-center space-x-2">
+                  <span class="w-2 h-2 rounded-full" [style.background-color]="department.isActive ? '#10B981' : '#EF4444'"></span>
+                  <span class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ department.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            @if (canManageDepartments(currentUser$ | async)) {
+              <div class="flex items-center space-x-1">
+                <button 
+                  (click)="openEditModal(department)"
+                  class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                  title="Edit Department"
+                >
+                  <i data-lucide="edit" class="w-4 h-4"></i>
+                </button>
+                <button 
+                  (click)="openDeleteModal(department)"
+                  class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                  title="Delete Department"
+                >
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            }
+          </div>
+
+          <!-- Department Description -->
+          @if (department.description) {
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">{{ department.description }}</p>
+          }
+
+          <!-- Department Stats -->
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ department.memberCount }}</p>
+              <p class="text-xs text-gray-600 dark:text-gray-400">Members</p>
+            </div>
+            <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ department.taskCount }}</p>
+              <p class="text-xs text-gray-600 dark:text-gray-400">Tasks</p>
+            </div>
+          </div>
+
+
+          <!-- Department Meta -->
+          <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+              <span>Created {{ formatDate(department.createdAt) }}</span>
+              <span>Updated {{ formatDate(department.updatedAt) }}</span>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Empty State -->
+    @if (departments.length === 0) {
+      <div class="text-center py-12">
+        <i data-lucide="building" class="w-16 h-16 text-gray-400 mx-auto mb-4"></i>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No departments found</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">Get started by creating your first department</p>
+        @if (canManageDepartments(currentUser$ | async)) {
+          <button 
+            (click)="openCreateModal()"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+          >
+            Create Department
+          </button>
+        }
+      </div>
+    }
+  }
+
+  <!-- Create Department Modal -->
+  @if (showCreateModal) {
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Create Department</h3>
+            <button 
+              (click)="closeModals()"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+          </div>
+
+          <form (ngSubmit)="createDepartment()" class="space-y-4">
+            <div>
+              <label for="create-department-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Department Name *
+              </label>
+              <input 
+                id="create-department-name"
+                type="text" 
+                [(ngModel)]="departmentForm.name"
+                name="name"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter department name"
+                required
+              >
+            </div>
+
+            <div>
+              <label 
+                for="create-department-description"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                Description
+              </label>
+              <textarea 
+                id="create-department-description"
+                [(ngModel)]="departmentForm.description"
+                name="description"
+                rows="3"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter department description"
+              ></textarea>
+            </div>
+
+            <div>
+              <span id="department-color-label" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Color
+              </span>
+              <div class="grid grid-cols-4 gap-2" role="radiogroup" aria-labelledby="department-color-label">
+                @for (color of departmentColors; track color.value) {
+                  <button 
+                    type="button"
+                    role="radio"
+                    [attr.aria-checked]="departmentForm.color === color.value"
+                    [attr.aria-label]="color.name"
+                    (click)="departmentForm.color = color.value"
+                    [class]="'w-10 h-10 rounded-lg border-2 transition-all ' + color.class + (departmentForm.color === color.value ? ' border-gray-900 dark:border-white' : ' border-gray-300 dark:border-gray-600')"
+                    [title]="color.name"
+                  ></button>
+                }
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end space-x-3 pt-4">
+              <button 
+                type="button"
+                (click)="closeModals()"
+                class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit"
+                [disabled]="loading"
+                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              >
+                @if (loading) {
+                  <div class="flex items-center space-x-2">
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Creating...</span>
+                  </div>
+                } @else {
+                  Create Department
+                }
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Edit Department Modal -->
+  @if (showEditModal && selectedDepartment) {
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Edit Department</h3>
+            <button 
+              (click)="closeModals()"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+          </div>
+
+          <form (ngSubmit)="updateDepartment()" class="space-y-4">
+            <div>
+              <label for="edit-department-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Department Name *
+              </label>
+              <input 
+                id="edit-department-name"
+                type="text" 
+                [(ngModel)]="departmentForm.name"
+                name="name"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter department name"
+                required
+              >
+            </div>
+
+            <div>
+              <label for="edit-department-description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Description
+              </label>
+              <textarea 
+                id="edit-department-description"
+                [(ngModel)]="departmentForm.description"
+                name="description"
+                rows="3"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter department description"
+              ></textarea>
+            </div>
+
+            <div>
+              <span id="edit-department-color-label" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Color
+              </span>
+              <div class="grid grid-cols-4 gap-2" role="radiogroup" aria-labelledby="edit-department-color-label">
+                @for (color of departmentColors; track color.value) {
+                  <button 
+                    type="button"
+                    (click)="departmentForm.color = color.value"
+                    [class]="'w-10 h-10 rounded-lg border-2 transition-all ' + color.class + (departmentForm.color === color.value ? ' border-gray-900 dark:border-white' : ' border-gray-300 dark:border-gray-600')"
+                    [title]="color.name"
+                  ></button>
+                }
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end space-x-3 pt-4">
+              <button 
+                type="button"
+                (click)="closeModals()"
+                class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit"
+                [disabled]="loading"
+                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              >
+                @if (loading) {
+                  <div class="flex items-center space-x-2">
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Updating...</span>
+                  </div>
+                } @else {
+                  Update Department
+                }
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Delete Department Modal -->
+  @if (showDeleteModal && selectedDepartment) {
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full">
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Delete Department</h3>
+            <button 
+              (click)="closeModals()"
+              class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+          </div>
+
+          <div class="mb-6">
+            <div class="flex items-center space-x-3 mb-4">
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center" [style.background-color]="selectedDepartment.color">
+                <i data-lucide="building" class="w-5 h-5 text-white"></i>
+              </div>
+              <div>
+                <h4 class="text-lg font-semibold text-gray-900 dark:text-white">{{ selectedDepartment.name }}</h4>
+                <p class="text-sm text-gray-600 dark:text-gray-400">{{ selectedDepartment.memberCount }} members, {{ selectedDepartment.taskCount }} tasks</p>
+              </div>
+            </div>
+            
+            <p class="text-gray-600 dark:text-gray-400">
+              Are you sure you want to delete this department? This action cannot be undone.
+              @if (selectedDepartment.memberCount > 0 || selectedDepartment.taskCount > 0) {
+                <br><br>
+                <strong class="text-red-600 dark:text-red-400">
+                  This department has {{ selectedDepartment.memberCount }} members and {{ selectedDepartment.taskCount }} tasks. 
+                  Please reassign them before deleting.
+                </strong>
+              }
+            </p>
+          </div>
+
+          <div class="flex items-center justify-end space-x-3">
+            <button 
+              (click)="closeModals()"
+              class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              (click)="deleteDepartment()"
+              [disabled]="loading || selectedDepartment.memberCount > 0 || selectedDepartment.taskCount > 0"
+              class="px-6 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+            >
+              @if (loading) {
+                <div class="flex items-center space-x-2">
+                  <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Deleting...</span>
+                </div>
+              } @else {
+                Delete Department
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

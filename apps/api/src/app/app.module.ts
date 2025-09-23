@@ -4,14 +4,22 @@ import { AppService } from './app.service';
 import { UserModule } from '../user/user.module';
 import { AuthModule } from '../auth/auth.module';
 import { DbModule } from '../db/db.module';
+import { TaskModule } from '../task/task.module';
+import { AuditLogModule } from '../audit-log/audit-log.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
+import { DepartmentModule } from '../department/department.module';
 
 @Module({
   imports: [
     DbModule,
-    UserModule, 
-    AuthModule
+    UserModule,
+    TaskModule,
+    AuthModule,
+    AuditLogModule,
+    AnalyticsModule,
+    DepartmentModule
   ],
-  controllers: [AppController], 
-  providers: [AppService], 
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
