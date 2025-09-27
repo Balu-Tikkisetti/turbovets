@@ -1,17 +1,20 @@
-import { Component, OnInit, OnDestroy, inject, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, HostListener, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
 import { Observable, Subscription } from 'rxjs';
-import { take } from 'rxjs/operators';
+import { take, map } from 'rxjs/operators';
 import { Task, TaskCategory, TaskPriority, TaskStatus, UserDto, Role } from '@turbovets/data';
 import { CdkDragDrop, CdkDropList, CdkDrag, moveItemInArray } from '@angular/cdk/drag-drop';
 import { selectCurrentUser } from '../../core/state/auth.reducer';
+import { UserService } from '../../core/services/user.service';
 import { 
   loadTasks, 
+  loadMyTasks,
   createTask, 
   updateTask, 
   deleteTask,
+  assignTask,
   setTaskFilters, 
   clearTaskFilters,
   setTaskSort,
@@ -22,7 +25,10 @@ import {
 } from '../../core/state/task/task.actions';
 import { 
   selectFilteredTasks, 
+  selectMyTasks,
+  selectFilteredMyTasks,
   selectTasksLoading, 
+  selectMyTasksLoading,
   selectTasksError,
   selectTaskStats,
   selectFilteredTaskStats,
@@ -38,7 +44,9 @@ import {
   styleUrls: ['./tasks.component.scss']
 })
 export class TasksComponent implements OnInit, OnDestroy {
+  @Input() taskType: 'work' | 'my' = 'work'; // Default to work tasks
   private store = inject(Store);
+  private userService = inject(UserService);
   
   // Expose enums for template use
   TaskStatus = TaskStatus;
@@ -48,11 +56,36 @@ export class TasksComponent implements OnInit, OnDestroy {
   
   // Observables from NgRx state
   currentUser$: Observable<UserDto | null> = this.store.select(selectCurrentUser);
-  filteredTasks$: Observable<Task[]> = this.store.select(selectFilteredTasks);
-  loading$: Observable<boolean> = this.store.select(selectTasksLoading);
+  
+  // Dynamic selectors based on task type
+  get filteredTasks$(): Observable<Task[]> {
+    return this.taskType === 'my' 
+      ? this.store.select(selectFilteredMyTasks)
+      : this.store.select(selectFilteredTasks);
+  }
+  
+  get loading$(): Observable<boolean> {
+    return this.taskType === 'my'
+      ? this.store.select(selectMyTasksLoading)
+      : this.store.select(selectTasksLoading);
+  }
+  
   error$: Observable<string | null> = this.store.select(selectTasksError);
-  taskStats$: Observable<any> = this.store.select(selectTaskStats);
-  filteredStats$: Observable<any> = this.store.select(selectFilteredTaskStats);
+  get taskStats$(): Observable<any> {
+    return this.taskType === 'my'
+      ? this.store.select(selectMyTasks).pipe(
+          map(tasks => this.calculateMyTaskStats(tasks))
+        )
+      : this.store.select(selectTaskStats);
+  }
+  
+  get filteredStats$(): Observable<any> {
+    return this.taskType === 'my'
+      ? this.store.select(selectFilteredMyTasks).pipe(
+          map(tasks => this.calculateMyTaskStats(tasks))
+        )
+      : this.store.select(selectFilteredTaskStats);
+  }
   overdueTasks$: Observable<Task[]> = this.store.select(selectOverdueTasks);
   upcomingTasks$: Observable<Task[]> = this.store.select(selectUpcomingTasks);
   
@@ -90,11 +123,11 @@ export class TasksComponent implements OnInit, OnDestroy {
   // Advanced filtering and sorting
   searchTerm = '';
   activeFilter = 'all';
-  sortField: 'createdAt' | 'updatedAt' | 'dueDate' | 'priority' | 'title' | 'status' = 'createdAt';
+ 
   sortDirection: 'asc' | 'desc' = 'desc';
   
   // Quick filters
-  quickFilters = ['All', 'My Tasks', 'Overdue', 'High Priority', 'Completed'];
+  quickFilters = ['All', 'Work', 'Personal'];
   
   // Task statuses for Kanban
   taskStatuses = ['to-do', 'started', 'ongoing', 'completed'];
@@ -148,6 +181,10 @@ export class TasksComponent implements OnInit, OnDestroy {
 
   // Current user for permission checks
   currentUser: UserDto | null = null;
+
+  // Assignable users for dropdown
+  assignableUsers: UserDto[] = [];
+  loadingAssignableUsers = false;
 
   // Keyboard shortcuts
   @HostListener('document:keydown', ['$event'])
@@ -241,11 +278,21 @@ export class TasksComponent implements OnInit, OnDestroy {
     this.currentUser$.subscribe(user => {
       this.currentUser = user;
       console.log('Current user:', user);
+      
+      // Load assignable users if user is Owner or Admin
+      if (user && (user.role === Role.Owner || user.role === Role.Admin)) {
+        this.loadAssignableUsers();
+      }
     });
     
-    // Load tasks data
-    console.log('TasksComponent: Dispatching loadTasks action');
-    this.store.dispatch(loadTasks());
+    // Load tasks data based on task type
+    if (this.taskType === 'my') {
+      console.log('TasksComponent: Dispatching loadMyTasks action');
+      this.store.dispatch(loadMyTasks());
+    } else {
+      console.log('TasksComponent: Dispatching loadTasks action');
+      this.store.dispatch(loadTasks());
+    }
     
     // Debug: Subscribe to loading state
     this.subscription.add(
@@ -273,7 +320,11 @@ export class TasksComponent implements OnInit, OnDestroy {
     // Set up real-time updates
     const interval = setInterval(() => {
       console.log('TasksComponent: Auto-refreshing tasks...');
-      this.store.dispatch(loadTasks());
+      if (this.taskType === 'my') {
+        this.store.dispatch(loadMyTasks());
+      } else {
+        this.store.dispatch(loadTasks());
+      }
     }, 60000); // Update every minute
     
     this.subscription.add({ unsubscribe: () => clearInterval(interval) });
@@ -324,7 +375,11 @@ export class TasksComponent implements OnInit, OnDestroy {
 
   retryLoadTasks() {
     console.log('TasksComponent: Retrying to load tasks...');
-    this.store.dispatch(loadTasks());
+    if (this.taskType === 'my') {
+      this.store.dispatch(loadMyTasks());
+    } else {
+      this.store.dispatch(loadTasks());
+    }
   }
 
 
@@ -611,6 +666,27 @@ export class TasksComponent implements OnInit, OnDestroy {
     return this.getStatusColor(status);
   }
 
+  // Quick filter button styling
+  getQuickFilterClasses(filter: string): string {
+    const isActive = this.activeFilter === filter.toLowerCase().replace(' ', '-');
+    const baseClasses = 'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 shadow-sm';
+    
+    if (isActive) {
+      switch (filter) {
+        case 'All':
+          return `${baseClasses} bg-blue-500 text-white shadow-blue-200 dark:shadow-blue-800 ring-2 ring-blue-300 dark:ring-blue-600`;
+        case 'Work':
+          return `${baseClasses} bg-purple-500 text-white shadow-purple-200 dark:shadow-purple-800 ring-2 ring-purple-300 dark:ring-purple-600`;
+        case 'Personal':
+          return `${baseClasses} bg-green-500 text-white shadow-green-200 dark:shadow-green-800 ring-2 ring-green-300 dark:ring-green-600`;
+        default:
+          return `${baseClasses} bg-blue-500 text-white shadow-blue-200 dark:shadow-blue-800 ring-2 ring-blue-300 dark:ring-blue-600`;
+      }
+    } else {
+      return `${baseClasses} bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 hover:shadow-md`;
+    }
+  }
+
   // Advanced filtering and sorting methods
   applyQuickFilter(filter: string) {
     this.activeFilter = filter.toLowerCase().replace(' ', '-');
@@ -618,6 +694,16 @@ export class TasksComponent implements OnInit, OnDestroy {
     switch (filter) {
       case 'All':
         this.store.dispatch(clearTaskFilters());
+        break;
+      case 'Work':
+        this.store.dispatch(setTaskFilters({ 
+          filters: { category: TaskCategory.Work } 
+        }));
+        break;
+      case 'Personal':
+        this.store.dispatch(setTaskFilters({ 
+          filters: { category: TaskCategory.Personal } 
+        }));
         break;
       case 'My Tasks':
         // Filter for user's own tasks (created by or assigned to user)
@@ -820,6 +906,37 @@ export class TasksComponent implements OnInit, OnDestroy {
     return completionRate;
   }
 
+  calculateMyTaskStats(tasks: Task[]): any {
+    if (!tasks || tasks.length === 0) {
+      return {
+        total: 0,
+        completed: 0,
+        inProgress: 0,
+        pending: 0,
+        overdue: 0,
+        high: 0,
+        medium: 0,
+        low: 0
+      };
+    }
+
+    const now = new Date();
+    const overdue = tasks.filter(task => 
+      task.dueDate && new Date(task.dueDate) < now && task.status !== TaskStatus.Completed
+    ).length;
+
+    return {
+      total: tasks.length,
+      completed: tasks.filter(task => task.status === TaskStatus.Completed).length,
+      inProgress: tasks.filter(task => task.status === TaskStatus.Started || task.status === TaskStatus.Ongoing).length,
+      pending: tasks.filter(task => task.status === TaskStatus.ToDo).length,
+      overdue,
+      high: tasks.filter(task => task.priority === TaskPriority.High).length,
+      medium: tasks.filter(task => task.priority === TaskPriority.Medium).length,
+      low: tasks.filter(task => task.priority === TaskPriority.Low).length
+    };
+  }
+
   // Edit task method
   editTask(task: Task) {
     if (!this.canEditTask(task)) {
@@ -841,5 +958,38 @@ export class TasksComponent implements OnInit, OnDestroy {
       assigneeId: task.assigneeId || ''
     };
     this.showEditModal = true;
+  }
+
+  // Assign task method
+  assignTask(task: Task, assigneeId: string) {
+    if (!this.canReassignTask()) {
+      console.warn('User does not have permission to assign tasks');
+      return;
+    }
+    
+    this.store.dispatch(assignTask({ taskId: task.id, assigneeId }));
+  }
+
+  // Load assignable users for dropdown
+  loadAssignableUsers() {
+    if (!this.currentUser) return;
+    
+    this.loadingAssignableUsers = true;
+    
+    // For Admin users, only get users from their department
+    // For Owner users, get all users
+    const department = this.currentUser.role === Role.Admin ? this.currentUser.department : undefined;
+    
+    this.userService.getAssignableUsers(department, true).subscribe({
+      next: (users) => {
+        this.assignableUsers = users;
+        this.loadingAssignableUsers = false;
+        console.log('Loaded assignable users:', users);
+      },
+      error: (error) => {
+        console.error('Error loading assignable users:', error);
+        this.loadingAssignableUsers = false;
+      }
+    });
   }
 }

@@ -1,9 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { Observable, throwError } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment.local';
-import { LoginUserDto, RegisterUserDto } from '@turbovets/data';
+import { LoginUserDto, RegisterUserDto, UserSession, UserProfile } from '@turbovets/data';
 import { Store } from '@ngrx/store';
 import { loginSuccess, logout, AuthState } from '../state/auth.reducer';
 import { JwtRefreshService, LoginResponse } from './jwt-refresh.service';
@@ -15,6 +16,7 @@ export class AuthService {
   private apiUrl = `${environment.apiUrl}/auth`;
   private tokenKey = 'auth_token';
   private http = inject(HttpClient);
+  private router = inject(Router);
   private store = inject(Store<AuthState>);
   private jwtRefreshService = inject(JwtRefreshService);
 
@@ -23,7 +25,25 @@ export class AuthService {
       tap(res => {
         // Use JwtRefreshService to handle token storage and management
         this.jwtRefreshService.setTokens(res);
-        this.store.dispatch(loginSuccess(res.user));
+        
+        // Create minimal session data for sessionStorage
+        const session: UserSession = {
+          id: res.user.id,
+          username: res.user.username,
+          role: res.user.role,
+          department: res.user.department
+        };
+        
+        // Create full user profile for application state
+        const userProfile: UserProfile = {
+          ...session
+          // Note: email and lastLoginAt are not returned from backend login response
+          // They can be fetched separately if needed
+        };
+        
+        this.store.dispatch(loginSuccess(userProfile, session));
+        
+        // Login successful - statistics will be updated via polling
       }),
       catchError(this.handleError)
     );
@@ -53,12 +73,15 @@ export class AuthService {
         // Use JwtRefreshService to clear all tokens
         this.jwtRefreshService.clearTokens();
         
+        // Logout successful
+        
         // Dispatch logout action to clear state
         this.store.dispatch(logout());
       }),
       catchError((error) => {
         // Even if API call fails, clear local data
         this.jwtRefreshService.clearTokens();
+        // Logout completed
         this.store.dispatch(logout());
         return this.handleError(error);
       })

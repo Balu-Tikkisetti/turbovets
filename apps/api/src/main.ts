@@ -5,6 +5,7 @@ import * as dotenv from 'dotenv';
 import { Client } from 'pg';
 import { ValidationPipe } from '@nestjs/common';
 import { databaseConfig, serverConfig } from './config/database.config';
+import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 
@@ -47,6 +48,29 @@ async function bootstrap() {
   app.setGlobalPrefix(globalPrefix);
   
   
+  // Rate Limiting
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: {
+      error: 'Too many requests from this IP, please try again later.',
+      retryAfter: '15 minutes'
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use('/api', limiter);
+
+  // Security Headers Middleware
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    next();
+  });
+
   app.enableCors({
     origin: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
@@ -77,11 +101,16 @@ async function bootstrap() {
   });
 
   app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
+    whitelist: true,                    // Remove unknown properties
+    forbidNonWhitelisted: true,         // Throw error on unknown properties
+    transform: true,                    // Transform payloads to DTOs
     transformOptions: {
       enableImplicitConversion: true,
+    },
+    disableErrorMessages: process.env.NODE_ENV === 'production', // Hide errors in production
+    validationError: {
+      target: false,                    // Don't expose target object
+      value: false,                     // Don't expose value
     },
   }));
 

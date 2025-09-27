@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { Observable, of } from 'rxjs';
-import { selectCurrentUser } from '../../core/state/auth.reducer';
+import { selectCurrentUserOrSession } from '../../core/state/auth.reducer';
 import { UserDto } from '@turbovets/data';
 import { UserService } from '../../core/services/user.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -30,17 +30,23 @@ export class ProfileOverlayComponent implements OnInit, OnDestroy, OnChanges {
   private clickListener?: (event: Event) => void;
 
   constructor() {
-    this.currentUser$ = this.store.select(selectCurrentUser);
+    this.currentUser$ = this.store.select(selectCurrentUserOrSession);
   }
 
   ngOnInit(): void {
     // Close overlay when clicking outside
     this.clickListener = (event: Event) => {
-      const target = event.target as HTMLElement;
-      const overlay = target.closest('.profile-overlay-container');
-      if (!overlay && this.isVisible) {
-        this.closeOverlay.emit();
-      }
+      // Add small delay to ensure profile button click is processed first
+      setTimeout(() => {
+        const target = event.target as HTMLElement;
+        const overlay = target.closest('.profile-overlay-container');
+        const profileButton = target.closest('.profile-enterprise');
+        
+        // Don't close if clicking on profile button or inside overlay
+        if (!overlay && !profileButton && this.isVisible) {
+          this.closeOverlay.emit();
+        }
+      }, 10);
     };
     document.addEventListener('click', this.clickListener);
   }
@@ -56,9 +62,8 @@ export class ProfileOverlayComponent implements OnInit, OnDestroy, OnChanges {
     this.profileDetails$ = this.userService.getProfileDetails();
     
     this.profileDetails$.subscribe({
-      next: (details) => {
+      next: () => {
         this.isLoading = false;
-        console.log('Profile details fetched:', details);
       },
       error: (error) => {
         this.isLoading = false;
@@ -108,4 +113,5 @@ export class ProfileOverlayComponent implements OnInit, OnDestroy, OnChanges {
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300';
     }
   }
+
 }

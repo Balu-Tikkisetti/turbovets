@@ -13,9 +13,10 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
     TypeOrmModule.forFeature([Task, User]), 
     forwardRef(() => AuthModule), 
     forwardRef(() => UserModule),
-    AuditLogModule
+    AuditLogModule,
   ],
   controllers: [TaskController],
   providers: [TaskService],
+  exports: [TaskService],
 })
 export class TaskModule {}

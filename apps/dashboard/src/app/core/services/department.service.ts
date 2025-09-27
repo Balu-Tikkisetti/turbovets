@@ -50,6 +50,14 @@ export class DepartmentService {
     );
   }
 
+  getDepartmentNames(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.apiUrl}/names`, {
+      headers: this.getHeaders()
+    }).pipe(
+      catchError(this.handleError)
+    );
+  }
+
   getDepartmentById(id: string): Observable<Department> {
     return this.http.get<Department>(`${this.apiUrl}/${id}`, {
       headers: this.getHeaders()

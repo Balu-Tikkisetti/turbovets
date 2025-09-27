@@ -2,10 +2,10 @@ import { Component, EventEmitter, Input, Output, OnInit, OnDestroy, OnChanges, i
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Store } from '@ngrx/store';
-import { selectCurrentUser } from '../../core/state/auth.reducer';
+import { selectCurrentUserOrSession } from '../../core/state/auth.reducer';
 import { createTask } from '../../core/state/task/task.actions';
 import { Subscription } from 'rxjs';
-import { UserDto, Role } from '@turbovets/data';
+import { UserDto, Role, UserProfile } from '@turbovets/data';
 import { 
   loadDepartments, 
   loadAssignableUsers, 
@@ -52,7 +52,7 @@ export class CreateTaskModalComponent implements OnInit, OnDestroy, OnChanges {
   recurringEndType: 'date' | 'count' = 'date';
 
   // Data properties
-  currentUser: UserDto | null = null;
+  currentUser: UserProfile | null = null;
   departments: string[] = [];
   availableAssignees: UserDto[] = [];
   selectedDepartment = '';
@@ -65,10 +65,10 @@ export class CreateTaskModalComponent implements OnInit, OnDestroy, OnChanges {
 
   // Permission checks
   get canChangeDepartment(): boolean {
-    if (!this.userPermissions) return false;
+    if (!this.currentUser) return false;
     
     // Owner can change to any department
-    if (this.userPermissions.canViewAllDepartments) return true;
+    if (this.currentUser.role === Role.Owner) return true;
     
     // Admin and Viewer cannot change departments (they're locked to their own department)
     return false;
@@ -101,7 +101,7 @@ export class CreateTaskModalComponent implements OnInit, OnDestroy, OnChanges {
   ngOnInit() {
     // Subscribe to current user
     this.subscription.add(
-      this.store.select(selectCurrentUser).subscribe(user => {
+      this.store.select(selectCurrentUserOrSession).subscribe(user => {
         this.currentUser = user;
         if (user) {
           this.userPermissions = this.departmentService.getUserPermissions(user.role as Role, user.department);
@@ -170,20 +170,13 @@ export class CreateTaskModalComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   private triggerDataLoading(): void {
-    // Always check if we need to load departments (for all users who can see departments)
+    // Load departments based on user role
     this.store.select(selectDepartmentsState).pipe(take(1)).subscribe(departments => {
-      // Load departments only if:
-      // 1. User is Admin/Owner and no departments loaded
-      // Note: Only Admin/Owner can access the departments API endpoint
-      const shouldLoadDepartments = (
-        (this.currentUser?.role === Role.Admin || this.currentUser?.role === Role.Owner) && 
-        departments.length === 0
-      );
-      
-      if (shouldLoadDepartments) {
+      if (this.currentUser?.role === Role.Owner && departments.length === 0) {
+        // Owner can see all departments
         this.store.dispatch(loadDepartments());
-      } else if (this.currentUser?.role !== Role.Admin && this.currentUser?.role !== Role.Owner && this.currentUser?.department && departments.length === 0) {
-        // For non-Admin/Owner users, populate departments with just their department
+      } else if ((this.currentUser?.role === Role.Admin || this.currentUser?.role === Role.Viewer) && this.currentUser?.department) {
+        // Admin and Viewer users can only see their own department
         this.departments = [this.currentUser.department];
       }
     });
@@ -202,12 +195,15 @@ export class CreateTaskModalComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   filterAssignees() {
-    if (!this.currentUser || !this.userPermissions) {
+    if (!this.currentUser) {
       this.availableAssignees = [];
       return;
     }
 
-    if (this.userPermissions.canAssignTasks) {
+    // Check if user can assign tasks based on role
+    const canAssign = this.currentUser.role === Role.Owner || this.currentUser.role === Role.Admin;
+    
+    if (canAssign) {
       // Users are already sorted by role (Admin first, then Viewer) from the backend
       this.availableAssignees = this.availableAssignees || [];
     } else {

@@ -4,6 +4,12 @@ import {
   loadTasks, 
   loadTasksSuccess, 
   loadTasksFailure,
+  loadMyTasks,
+  loadMyTasksSuccess,
+  loadMyTasksFailure,
+  loadTaskStatistics,
+  loadTaskStatisticsSuccess,
+  loadTaskStatisticsFailure,
   createTask,
   createTaskSuccess,
   createTaskFailure,
@@ -13,6 +19,12 @@ import {
   deleteTask,
   deleteTaskSuccess,
   deleteTaskFailure,
+  moveTaskToDepartment,
+  moveTaskToDepartmentSuccess,
+  moveTaskToDepartmentFailure,
+  assignTask,
+  assignTaskSuccess,
+  assignTaskFailure,
   setTaskFilters,
   clearTaskFilters,
   setTaskSort,
@@ -29,16 +41,22 @@ import {
 
 export interface TaskState {
   tasks: Task[];
+  myTasks: Task[];
+  statistics: any;
   filteredTasks: Task[];
   filters: TaskFilters;
   sort: TaskSortOptions;
   loading: boolean;
+  myTasksLoading: boolean;
+  statisticsLoading: boolean;
   error: string | null;
   lastUpdated: number | null;
 }
 
 export const initialState: TaskState = {
   tasks: [],
+  myTasks: [],
+  statistics: null,
   filteredTasks: [],
   filters: {
     searchTerm: '',
@@ -58,6 +76,8 @@ export const initialState: TaskState = {
     direction: 'desc'
   },
   loading: false,
+  myTasksLoading: false,
+  statisticsLoading: false,
   error: null,
   lastUpdated: null
 };
@@ -280,6 +300,92 @@ export const taskReducer = createReducer(
   }),
   
   on(bulkUpdateTaskStatusFailure, (state, { error }) => ({
+    ...state,
+    loading: false,
+    error
+  })),
+
+  // My Tasks Reducers
+  on(loadMyTasks, (state) => ({
+    ...state,
+    myTasksLoading: true,
+    error: null
+  })),
+  on(loadMyTasksSuccess, (state, { tasks }) => ({
+    ...state,
+    myTasks: tasks,
+    myTasksLoading: false,
+    error: null
+  })),
+  on(loadMyTasksFailure, (state, { error }) => ({
+    ...state,
+    myTasksLoading: false,
+    error
+  })),
+
+  // Task Statistics Reducers
+  on(loadTaskStatistics, (state) => ({
+    ...state,
+    statisticsLoading: true,
+    error: null
+  })),
+  on(loadTaskStatisticsSuccess, (state, { statistics }) => ({
+    ...state,
+    statistics,
+    statisticsLoading: false,
+    error: null
+  })),
+  on(loadTaskStatisticsFailure, (state, { error }) => ({
+    ...state,
+    statisticsLoading: false,
+    error
+  })),
+
+  // Move Task to Department Reducers
+  on(moveTaskToDepartment, (state) => ({
+    ...state,
+    loading: true,
+    error: null
+  })),
+  on(moveTaskToDepartmentSuccess, (state, { task }) => {
+    const updatedTasks = state.tasks.map(t => t.id === task.id ? task : t);
+    const sortedTasks = sortTasks(updatedTasks, state.sort);
+    const filteredTasks = applyFilters(sortedTasks, state.filters);
+    
+    return {
+      ...state,
+      tasks: sortedTasks,
+      filteredTasks,
+      loading: false,
+      error: null
+    };
+  }),
+  on(moveTaskToDepartmentFailure, (state, { error }) => ({
+    ...state,
+    loading: false,
+    error
+  })),
+
+  // Assign Task Reducers
+  on(assignTask, (state) => ({
+    ...state,
+    loading: true,
+    error: null
+  })),
+  on(assignTaskSuccess, (state, { task }) => {
+    const updatedTasks = state.tasks.map(t => t.id === task.id ? task : t);
+    const sortedTasks = sortTasks(updatedTasks, state.sort);
+    const filteredTasks = applyFilters(sortedTasks, state.filters);
+    
+    return {
+      ...state,
+      tasks: sortedTasks,
+      filteredTasks,
+      loading: false,
+      error: null
+    };
+  }),
+  on(assignTaskFailure, (state, { error }) => ({
     ...state,
     loading: false,
     error

@@ -5,7 +5,7 @@ import { Store } from '@ngrx/store';
 import { Observable, Subject } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
 import { UserDto, Role } from '@turbovets/data';
-import { selectCurrentUser } from '../../core/state/auth.reducer';
+import { selectCurrentUserOrSession } from '../../core/state/auth.reducer';
 import { 
   loadAnalytics,
   setAnalyticsFilters
@@ -41,7 +41,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   
   // Observables from NgRx state
-  currentUser$: Observable<UserDto | null> = this.store.select(selectCurrentUser);
+  currentUser$: Observable<UserDto | null> = this.store.select(selectCurrentUserOrSession);
   
   // Analytics observables - simplified for audit logs only
   analyticsData$: Observable<AnalyticsData | null> = this.store.select(selectAnalyticsData);
@@ -65,6 +65,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   ];
 
   ngOnInit() {
+  
     // Initialize analytics component and load data based on user permissions
     this.initializeAnalytics();
   }
@@ -74,10 +75,12 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     this.currentUser$.pipe(
       takeUntil(this.destroy$)
     ).subscribe(user => {
+   
       if (!user) {
+      
         return;
       }
-
+      
       if (this.canAccessAnalytics(user)) {
         this.loadAuditData();
       }
@@ -90,15 +93,26 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   }
 
   canAccessAnalytics(user: UserDto | null): boolean {
-    return user?.role === Role.Owner || user?.role === Role.Admin;
+
+    if (!user) {
+     
+      return false;
+    }
+    
+    const canAccess = user.role === Role.Owner || user.role === Role.Admin;
+ 
+    return canAccess;
   }
 
   loadAuditData() {
+
     // Load audit data with current time range filter
     this.currentUser$.pipe(
       takeUntil(this.destroy$)
     ).subscribe(user => {
+    
       if (user && this.canAccessAnalytics(user)) {
+     
         this.store.dispatch(loadAnalytics({ 
           filters: { 
             timeRange: this.selectedTimeRange
@@ -109,11 +123,13 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   }
 
   onTimeRangeChange() {
+
     // Update filters and reload data when time range changes
     this.currentUser$.pipe(
       takeUntil(this.destroy$)
     ).subscribe(user => {
       if (user && this.canAccessAnalytics(user)) {
+     
         this.store.dispatch(setAnalyticsFilters({ 
           filters: { timeRange: this.selectedTimeRange } 
         }));
@@ -161,11 +177,13 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
   }
 
   refreshAnalytics() {
+   
     // Reload audit data with current filters
     this.loadAuditData();
   }
 
   goToDashboard() {
+ 
     window.location.href = '/dashboard';
   }
 }

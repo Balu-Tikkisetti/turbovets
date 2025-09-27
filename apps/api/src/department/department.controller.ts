@@ -50,8 +50,31 @@ export class DepartmentController {
 
   @Get()
   @Roles(Role.Owner, Role.Admin, Role.Viewer)
-  async findAll() {
-    return this.departmentService.findAllDepartments();
+  async findAll(@Req() req: Request) {
+    const userRole = req.user['role'] as Role;
+    const userDepartment = req.user['department'];
+    
+    // If user is Owner, return all departments
+    if (userRole === Role.Owner) {
+      return this.departmentService.findAllDepartments();
+    }
+    
+    // For Admin and Viewer, return only their department
+    if (userRole === Role.Admin || userRole === Role.Viewer) {
+      if (userDepartment) {
+        // Return only the user's department
+        const departments = await this.departmentService.findAllDepartments();
+        return departments.filter(dept => dept.name === userDepartment);
+      }
+      return [];
+    }
+    
+    return [];
+  }
+
+  @Get('names')
+  async getDepartmentNames() {
+    return this.departmentService.getDepartmentNames();
   }
 
   @Get(':id')

@@ -247,6 +247,7 @@ export class JwtRefreshService {
     return expiry ? parseInt(expiry, 10) : null;
   }
 
+
   /**
    * Clear all tokens from storage
    */
@@ -280,9 +281,15 @@ export class JwtRefreshService {
    */
   getAuthHeaders(): HttpHeaders {
     const token = this.getAccessToken();
+    
+    if (!token) {
+      throw new Error('No authentication token available');
+    }
+    
     return new HttpHeaders({
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest' // CSRF protection
     });
   }
 

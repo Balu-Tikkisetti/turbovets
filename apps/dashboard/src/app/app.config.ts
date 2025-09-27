@@ -22,8 +22,11 @@ import { analyticsReducer } from './core/state/analytics/analytics.reducer';
 import { AnalyticsEffects } from './core/state/analytics/analytics.effects';
 import { departmentReducer } from './core/state/department/department.reducer';
 import { DepartmentEffects } from './core/state/department/department.effects';
+import { statisticsReducer } from './core/state/statistics/statistics.reducer';
+import { StatisticsEffects } from './core/state/statistics/statistics.effects';
 import { AuthInterceptor } from './core/interceptors/auth.interceptor';
 import { ThemeService } from './core/services/theme.service';
+import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -42,9 +45,11 @@ export const appConfig: ApplicationConfig = {
       tasks: taskReducer,
       members: membersReducer,
       analytics: analyticsReducer,
-      department: departmentReducer
+      department: departmentReducer,
+      statistics: statisticsReducer
     }),
-    provideEffects([TaskEffects, MembersEffects, AnalyticsEffects, DepartmentEffects]),
+    provideEffects([TaskEffects, MembersEffects, AnalyticsEffects, DepartmentEffects, StatisticsEffects]),
+    provideCharts(withDefaultRegisterables()),
     ThemeService
   ],
 };

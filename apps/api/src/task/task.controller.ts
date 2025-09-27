@@ -41,8 +41,10 @@ export class TaskController {
     @Roles(Role.Owner, Role.Admin, Role.Viewer)
     async create(@Req() req: Request, @Body() createTaskDto: CreateTaskDto) {
       const creatorId = req.user['userId'];
+      const userRole = req.user['role'] as Role;
+      const userDepartment = req.user['department'];
       
-      const task = await this.taskService.createTask(createTaskDto, creatorId);
+      const task = await this.taskService.createTask(createTaskDto, creatorId, userRole, userDepartment);
       
       // Log the task creation
       await this.auditLogService.log(
@@ -56,20 +58,37 @@ export class TaskController {
         req.get('User-Agent'),
       );
       
+      // Statistics will be updated via polling
+      
       return task;
     }
   
   @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Owner, Role.Admin, Role.Viewer)
-  async findAll(@Req() req: Request) {
+  async findAllWorkTasks(@Req() req: Request) {
     const userId = req.user['userId'];
-    const role = req.user['role'];
-    const department = req.user['department'];
+    const userRole = req.user['role'] as Role;
+    const userDepartment = req.user['department'];
     
-    // Get all tasks across the organization for authenticated users
-    const tasks = await this.taskService.findAllTasks(userId, role);
+    // Get tasks based on user role and department
+    const tasks = await this.taskService.findAllWorkTasks(userId, userRole, userDepartment);
     return tasks;
   }
+
+  @Get('my-tasks')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Owner, Role.Admin, Role.Viewer)
+  async findMyTasks(@Req() req: Request) {
+    const userId = req.user['userId'];
+    const userRole = req.user['role'] as Role;
+    const userDepartment = req.user['department'];
+    
+    // Get tasks where user is creator or assignee
+    const tasks = await this.taskService.findMyTasks(userId, userRole, userDepartment);
+    return tasks;
+  }
+
 
     // Bulk operations endpoints - MUST come before individual routes
     @Post('bulk/delete')
@@ -155,6 +174,8 @@ export class TaskController {
         req.get('User-Agent'),
       );
       
+      // Statistics will be updated via polling
+      
       return updatedTask;
     }
 
@@ -187,9 +208,11 @@ export class TaskController {
           req.ip,
           req.get('User-Agent'),
         );
-      } catch (auditError) {
+      } catch {
         // Don't throw the error - task deletion was successful
       }
+      
+  
       
       return { success: true, message: 'Task deleted successfully' };
     }
@@ -262,6 +285,46 @@ export class TaskController {
         req.ip,
         req.get('User-Agent'),
       );
+      
+      return updatedTask;
+    }
+
+    @Patch(':id/assign')
+    @Roles(Role.Owner, Role.Admin)
+    @RequireTaskEdit()
+    async assignTask(
+      @Param('id') id: string,
+      @Body() body: { assigneeId: string },
+      @Req() req: RequestWithTask,
+    ) {
+      const userId = req.user['userId'];
+      const role = req.user['role'];
+      
+      // Fetch task for permission checking
+      const task = await this.taskService.findTaskById(id, userId, role);
+      req.task = task; // Make task available to the guard
+      
+      const oldAssigneeId = task.assigneeId;
+      const updatedTask = await this.taskService.assignTask(id, body.assigneeId, userId, role);
+      
+      // Log the task assignment
+      await this.auditLogService.log(
+        AuditAction.UPDATE,
+        AuditResource.TASK,
+        userId,
+        id,
+        `Task "${updatedTask.title}" assigned to user "${body.assigneeId}"`,
+        { 
+          taskCategory: updatedTask.category,
+          taskPriority: updatedTask.priority,
+          oldAssigneeId: oldAssigneeId,
+          newAssigneeId: body.assigneeId,
+          taskDepartment: updatedTask.department
+        },
+        req.ip,
+        req.get('User-Agent'),
+      );
+      
       
       return updatedTask;
     }

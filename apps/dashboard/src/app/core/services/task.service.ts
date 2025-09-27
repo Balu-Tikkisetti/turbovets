@@ -23,7 +23,8 @@ export class TaskService {
     
     return new HttpHeaders({
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'X-Requested-With': 'XMLHttpRequest' 
     });
   }
 
@@ -35,8 +36,9 @@ export class TaskService {
     );
   }
 
-  getTasks(): Observable<TaskInterface[]> {
-    console.log('TaskService: Getting tasks from:', this.apiUrl);
+  // Get all work tasks based on user role and department
+  getWorkTasks(): Observable<TaskInterface[]> {
+    console.log('TaskService: Getting work tasks from:', this.apiUrl);
     const headers = this.getHeaders();
     console.log('TaskService: Headers prepared');
     
@@ -44,11 +46,30 @@ export class TaskService {
       headers: headers
     }).pipe(
       tap(tasks => {
-        console.log('TaskService: Received tasks from backend:', tasks);
-        console.log('TaskService: Number of tasks:', tasks?.length || 0);
+        console.log('TaskService: Received work tasks from backend:', tasks);
+        console.log('TaskService: Number of work tasks:', tasks?.length || 0);
       }),
       catchError(error => {
-        console.error('TaskService: Error fetching tasks:', error);
+        console.error('TaskService: Error fetching work tasks:', error);
+        return this.handleError(error);
+      })
+    );
+  }
+
+  // Get tasks where user is creator or assignee
+  getMyTasks(): Observable<TaskInterface[]> {
+  
+    const headers = this.getHeaders();
+    
+    return this.http.get<TaskInterface[]>(`${this.apiUrl}/my-tasks`, {
+      headers: headers
+    }).pipe(
+      tap(tasks => {
+        console.log('TaskService: Received my tasks from backend:', tasks);
+        console.log('TaskService: Number of my tasks:', tasks?.length || 0);
+      }),
+      catchError(error => {
+        console.error('TaskService: Error fetching my tasks:', error);
         return this.handleError(error);
       })
     );
@@ -61,6 +82,8 @@ export class TaskService {
       catchError(this.handleError)
     );
   }
+
+
 
   updateTask(id: string, taskData: UpdateTaskDto): Observable<TaskInterface> {
     return this.http.patch<TaskInterface>(`${this.apiUrl}/${id}`, taskData, {
@@ -98,9 +121,10 @@ export class TaskService {
     );
   }
 
-  // Additional methods for effects
-  moveTaskToDepartment(taskId: string, department: string): Observable<TaskInterface> {
-    return this.http.patch<TaskInterface>(`${this.apiUrl}/${taskId}/department`, { department }, {
+
+
+  assignTask(taskId: string, assigneeId: string): Observable<TaskInterface> {
+    return this.http.patch<TaskInterface>(`${this.apiUrl}/${taskId}/assign`, { assigneeId }, {
       headers: this.getHeaders()
     }).pipe(
       catchError(this.handleError)

@@ -1,0 +1,322 @@
+<!-- Task Overlay Backdrop -->
+@if (isVisible) {
+  <div class="task-overlay-backdrop" (click)="close()" (keydown.escape)="close()" tabindex="0">
+    <div class="task-overlay-container" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" tabindex="-1">
+      
+      <!-- Loading State -->
+      @if (isLoading) {
+        <div class="flex items-center justify-center p-8">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span class="ml-4 text-gray-600">Loading task...</span>
+        </div>
+      }
+
+      <!-- Error State -->
+      @if (error) {
+        <div class="p-6">
+          <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <div class="flex items-center">
+              <i data-lucide="alert-circle" class="w-5 h-5 text-red-600 mr-2"></i>
+              <span class="text-red-800 dark:text-red-200">{{ error }}</span>
+            </div>
+            <button 
+              (click)="close()"
+              class="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Task Content -->
+      @if (task && !isLoading && !error) {
+        <!-- Header -->
+        <div class="task-overlay-header">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
+                @if (isEditing) {
+                  Edit Task
+                } @else {
+                  Task Details
+                }
+              </h2>
+              <!-- Priority Badge -->
+              <span 
+                class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                [class]="getPriorityClass(task.priority)"
+              >
+                {{ task.priority }}
+              </span>
+              <!-- Status Badge -->
+              <span 
+                class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                [class]="getStatusClass(task.status)"
+              >
+                {{ task.status }}
+              </span>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              @if (canEditTask()) {
+                <button 
+                  (click)="toggleEdit()"
+                  [class]="isEditing ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'"
+                  class="px-3 py-2 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <i [attr.data-lucide]="isEditing ? 'x' : 'edit'" class="w-4 h-4"></i>
+                  {{ isEditing ? 'Cancel' : 'Edit' }}
+                </button>
+              }
+              
+              <button 
+                (click)="close()"
+                class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <i data-lucide="x" class="w-5 h-5"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task Content -->
+        <div class="task-overlay-content">
+          
+          <!-- Title -->
+          <div class="form-group">
+            <label for="task-title" class="form-label">Title</label>
+            @if (isEditing) {
+              <input 
+                id="task-title"
+                type="text" 
+                [(ngModel)]="taskForm.title"
+                class="form-input"
+                placeholder="Enter task title..."
+              >
+            } @else {
+              <h3 class="text-lg font-medium text-gray-900 dark:text-white">{{ task.title }}</h3>
+            }
+          </div>
+
+          <!-- Description -->
+          <div class="form-group">
+            <label for="task-description" class="form-label">Description</label>
+            @if (isEditing) {
+              <textarea 
+                id="task-description"
+                [(ngModel)]="taskForm.description"
+                rows="4"
+                class="form-textarea"
+                placeholder="Enter task description..."
+              ></textarea>
+            } @else {
+              <p class="text-gray-700 dark:text-gray-300">
+                {{ task.description || 'No description provided' }}
+              </p>
+            }
+          </div>
+
+          <!-- Task Details Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Priority -->
+            <div class="form-group">
+              <label for="task-priority" class="form-label">Priority</label>
+              @if (isEditing) {
+                <select id="task-priority" [(ngModel)]="taskForm.priority" class="form-select">
+                  @for (priority of priorities; track priority) {
+                    <option [value]="priority">{{ priority | titlecase }}</option>
+                  }
+                </select>
+              } @else {
+                <span 
+                  class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium"
+                  [class]="getPriorityClass(task.priority)"
+                >
+                  {{ task.priority | titlecase }}
+                </span>
+              }
+            </div>
+
+            <!-- Status -->
+            <div class="form-group">
+              <label for="task-status" class="form-label">Status</label>
+              @if (isEditing) {
+                <select id="task-status" [(ngModel)]="taskForm.status" class="form-select">
+                  @for (status of statuses; track status) {
+                    <option [value]="status">{{ status | titlecase }}</option>
+                  }
+                </select>
+              } @else {
+                <span 
+                  class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium"
+                  [class]="getStatusClass(task.status)"
+                >
+                  {{ task.status | titlecase }}
+                </span>
+              }
+            </div>
+
+            <!-- Category -->
+            <div class="form-group">
+              <label for="task-category" class="form-label">Category</label>
+              @if (isEditing) {
+                <select id="task-category" [(ngModel)]="taskForm.category" class="form-select">
+                  @for (category of categories; track category) {
+                    <option [value]="category">{{ category | titlecase }}</option>
+                  }
+                </select>
+              } @else {
+                <span class="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                  {{ task.category | titlecase }}
+                </span>
+              }
+            </div>
+
+            <!-- Due Date -->
+            <div class="form-group">
+              <label for="task-due-date" class="form-label">Due Date</label>
+              @if (isEditing) {
+                <input 
+                  id="task-due-date"
+                  type="date" 
+                  [(ngModel)]="taskForm.dueDate"
+                  class="form-input"
+                >
+              } @else {
+                @if (task.dueDate) {
+                  <div class="flex items-center gap-2">
+                    <i data-lucide="calendar" class="w-4 h-4 text-gray-400"></i>
+                    <span 
+                      class="text-sm"
+                      [class]="isOverdue(task.dueDate) ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-600 dark:text-gray-400'"
+                    >
+                      {{ task.dueDate | date:'mediumDate' }}
+                      @if (isOverdue(task.dueDate)) {
+                        <span class="text-red-600 dark:text-red-400 font-medium">(Overdue)</span>
+                      }
+                    </span>
+                  </div>
+                } @else {
+                  <span class="text-sm text-gray-400 dark:text-gray-500">No due date set</span>
+                }
+              }
+            </div>
+          </div>
+
+          <!-- Assignment Information -->
+          <div class="form-group">
+            <label for="task-assignee" class="form-label">Assignment</label>
+            @if (isEditing && canAssignTask()) {
+              <select id="task-assignee" [(ngModel)]="taskForm.assigneeId" class="form-select">
+                <option value="">Unassigned</option>
+                @if (loadingAssignableUsers) {
+                  <option disabled>Loading users...</option>
+                } @else {
+                  @for (user of assignableUsers; track user.id) {
+                    <option [value]="user.id">
+                      {{ user.username }} ({{ user.role }})
+                      @if (user.department) {
+                        - {{ user.department }}
+                      }
+                    </option>
+                  }
+                }
+              </select>
+            } @else {
+              <div class="flex items-center gap-3">
+                @if (task.assigneeId) {
+                  <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                      {{ getAssigneeName(task.assigneeId).charAt(0).toUpperCase() }}
+                    </div>
+                    <div>
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">{{ getAssigneeName(task.assigneeId) }}</p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">Assigned</p>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="flex items-center gap-2">
+                    <i data-lucide="user-x" class="w-4 h-4 text-gray-400"></i>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">Unassigned</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Task Metadata -->
+          <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-500 dark:text-gray-400">
+              <div class="flex items-center gap-2">
+                <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+                <span>Created {{ task.createdAt | date:'medium' }}</span>
+              </div>
+              @if (task.updatedAt && task.updatedAt !== task.createdAt) {
+                <div class="flex items-center gap-2">
+                  <i data-lucide="calendar-edit" class="w-4 h-4"></i>
+                  <span>Updated {{ task.updatedAt | date:'medium' }}</span>
+                </div>
+              }
+              @if (task.department) {
+                <div class="flex items-center gap-2">
+                  <i data-lucide="building" class="w-4 h-4"></i>
+                  <span>{{ task.department }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="task-overlay-footer">
+          <div class="flex items-center justify-between">
+            <div>
+             
+                <button 
+                  (click)="deleteTask()"
+                  [disabled]="isDeleting"
+                  class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  @if (isDeleting) {
+                    <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                    Deleting...
+                  } @else {
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    Delete Task
+                  }
+                </button>
+              
+            </div>
+            
+            <div class="flex items-center gap-3">
+              <button 
+                (click)="close()"
+                class="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Close
+              </button>
+              
+              @if (isEditing && canEditTask()) {
+                <button 
+                  (click)="saveTask()"
+                  [disabled]="isSaving || !taskForm.title.trim()"
+                  class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  @if (isSaving) {
+                    <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                    Saving...
+                  } @else {
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    Save Changes
+                  }
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+}

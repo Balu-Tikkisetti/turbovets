@@ -4,9 +4,16 @@ import { Store } from '@ngrx/store';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { TaskService } from '../../services/task.service';
+import { StatisticsService } from '../../services/statistics.service';
 import { 
   loadTasks, 
   loadTasksSuccess,
+  loadMyTasks,
+  loadMyTasksSuccess,
+  loadMyTasksFailure,
+  loadTaskStatistics,
+  loadTaskStatisticsSuccess,
+  loadTaskStatisticsFailure,
   createTask,
   createTaskSuccess,
   createTaskFailure,
@@ -19,6 +26,9 @@ import {
   moveTaskToDepartment,
   moveTaskToDepartmentSuccess,
   moveTaskToDepartmentFailure,
+  assignTask,
+  assignTaskSuccess,
+  assignTaskFailure,
   bulkUpdateTasks,
   bulkUpdateTasksSuccess,
   bulkUpdateTasksFailure,
@@ -36,22 +46,21 @@ export class TaskEffects {
   private actions$ = inject(Actions);
   private taskService = inject(TaskService);
   private store = inject(Store);
-
-  // Load Tasks Effect
+  private statisticService = inject(StatisticsService);
+  // Load Work Tasks Effect
   loadTasks$ = createEffect(() =>
     this.actions$.pipe(
       ofType(loadTasks),
-      tap(() => console.log('TaskEffects: loadTasks action dispatched')),
+      tap(),
       switchMap(() => {
-        console.log('TaskEffects: Calling taskService.getTasks()');
-        return this.taskService.getTasks().pipe(
-          tap(tasks => console.log('TaskEffects: Tasks received from service:', tasks?.length || 0)),
+        
+        return this.taskService.getWorkTasks().pipe(
+          tap(),
           map(tasks => {
-            console.log('TaskEffects: Dispatching loadTasksSuccess with', tasks?.length || 0, 'tasks');
             return loadTasksSuccess({ tasks });
           }),
           catchError(error => {
-            console.error('TaskEffects: Failed to load tasks:', error);
+            console.error('TaskEffects: Failed to load work tasks:', error);
             // Don't let the error break the app - return empty tasks
             return of(loadTasksSuccess({ tasks: [] }));
           })
@@ -99,14 +108,16 @@ export class TaskEffects {
     )
   );
 
-  // Move Task to Department Effect
-  moveTaskToDepartment$ = createEffect(() =>
+
+
+  // Assign Task Effect
+  assignTask$ = createEffect(() =>
     this.actions$.pipe(
-      ofType(moveTaskToDepartment),
-      switchMap(({ taskId, department }) =>
-        this.taskService.moveTaskToDepartment(taskId, department).pipe(
-          map(updatedTask => moveTaskToDepartmentSuccess({ task: updatedTask })),
-          catchError(error => of(moveTaskToDepartmentFailure({ error: error.error?.message || error.message || 'Failed to move task' })))
+      ofType(assignTask),
+      switchMap(({ taskId, assigneeId }) =>
+        this.taskService.assignTask(taskId, assigneeId).pipe(
+          map(updatedTask => assignTaskSuccess({ task: updatedTask })),
+          catchError(error => of(assignTaskFailure({ error: error.error?.message || error.message || 'Failed to assign task' })))
         )
       )
     )
@@ -150,4 +161,32 @@ export class TaskEffects {
       )
     )
   );
+
+  // Load My Tasks Effect
+  loadMyTasks$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(loadMyTasks),
+      switchMap(() =>
+        this.taskService.getMyTasks().pipe(
+          map(tasks => loadMyTasksSuccess({ tasks })),
+          catchError(error => of(loadMyTasksFailure({ error: error.error?.message || error.message || 'Failed to load my tasks' })))
+        )
+      )
+    )
+  );
+
+  // Load Task Statistics Effect
+  loadTaskStatistics$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(loadTaskStatistics),
+      switchMap(() =>
+        this.statisticService.getTaskStatistics().pipe(
+          map(statistics => loadTaskStatisticsSuccess({ statistics })),
+          catchError(error => of(loadTaskStatisticsFailure({ error: error.error?.message || error.message || 'Failed to load task statistics' })))
+        )
+      )
+    )
+  );
+
+  // Statistics will be updated via polling in the component
 }

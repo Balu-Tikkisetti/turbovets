@@ -6,7 +6,7 @@ import { Observable, Subscription } from 'rxjs';
 import { take } from 'rxjs/operators';
 import { UserDto, Role } from '@turbovets/data';
 import { UserService } from '../../core/services/user.service';
-import { selectCurrentUser, updateCurrentUser } from '../../core/state/auth.reducer';
+import { selectCurrentUserOrSession, updateCurrentUser } from '../../core/state/auth.reducer';
 
 interface MemberWithStatus extends UserDto {
   isOnline?: boolean;
@@ -24,7 +24,7 @@ export class MembersComponent implements OnInit, OnDestroy {
   private store = inject(Store);
   private userService = inject(UserService);
   
-  currentUser$: Observable<UserDto | null> = this.store.select(selectCurrentUser);
+  currentUser$: Observable<UserDto | null> = this.store.select(selectCurrentUserOrSession);
   members: MemberWithStatus[] = [];
   filteredMembers: MemberWithStatus[] = [];
   
@@ -62,7 +62,18 @@ export class MembersComponent implements OnInit, OnDestroy {
     
     // Check if current user can manage users
     this.currentUser$.subscribe(user => {
-      this.canManageUsers = user?.role === Role.Owner;
+
+      
+      // Try multiple comparison methods
+      const roleStr = String(user?.role || '').trim();
+      const ownerStr = String(Role.Owner).trim();
+      
+   
+      
+      this.canManageUsers = user?.role === Role.Owner || 
+                           user?.role?.toLowerCase() === Role.Owner.toLowerCase() ||
+                           roleStr === ownerStr;
+      console.log('Can manage users:', this.canManageUsers);
     });
     
     // Set up real-time updates (simulate with periodic refresh)
@@ -94,7 +105,7 @@ export class MembersComponent implements OnInit, OnDestroy {
           this.applyFilters();
         });
       },
-      error: (error) => {
+      error: () => {
         // Handle error silently
       }
     });
@@ -238,7 +249,7 @@ export class MembersComponent implements OnInit, OnDestroy {
         this.closeEditModal();
         this.isSaving = false;
       },
-      error: (error) => {
+      error: () => {
         this.isSaving = false;
       }
     });

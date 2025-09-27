@@ -58,6 +58,13 @@ export class DepartmentService {
     }
   }
 
+  async getDepartmentNames(): Promise<string[]> {
+    const departments = await this.departmentRepository.find({
+      select: ['name']
+    });
+    return departments.map(dept => dept.name);
+  }
+
   async findDepartmentById(id: string): Promise<Department> {
     try {
       const department = await this.departmentRepository.findOne({

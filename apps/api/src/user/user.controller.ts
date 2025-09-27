@@ -73,6 +73,15 @@ export class UserController {
     @Query('excludeCurrentUser') excludeCurrentUser = true
   ) {
     const currentUserId = req.user['userId'];
+    const userRole = req.user['role'] as Role;
+    const userDepartment = req.user['department'];
+    
+    // For Admin users, restrict to their own department only
+    if (userRole === Role.Admin && userDepartment) {
+      return this.userService.getAssignableUsers(userDepartment, excludeCurrentUser, currentUserId);
+    }
+    
+    // For Owner users, allow access to any department
     return this.userService.getAssignableUsers(department, excludeCurrentUser, currentUserId);
   }
 

@@ -20,6 +20,70 @@ export const selectTasksLoading = createSelector(
   (state: TaskState) => state.loading
 );
 
+export const selectMyTasks = createSelector(
+  selectTaskState,
+  (state: TaskState) => state.myTasks
+);
+
+export const selectFilteredMyTasks = createSelector(
+  selectTaskState,
+  (state: TaskState) => {
+    if (!state.myTasks || state.myTasks.length === 0) return [];
+    
+    // Apply filters to my tasks
+    const filteredTasks = state.myTasks.filter(task => {
+      // Search term filter
+      const matchesSearch = !state.filters.searchTerm || 
+        task.title.toLowerCase().includes(state.filters.searchTerm.toLowerCase()) ||
+        (task.description && task.description.toLowerCase().includes(state.filters.searchTerm.toLowerCase()));
+      
+      // Category filter
+      const matchesCategory = !state.filters.category || task.category === state.filters.category;
+      
+      // Status filter
+      const matchesStatus = !state.filters.status || task.status === state.filters.status;
+      
+      // Priority filter
+      const matchesPriority = !state.filters.priority || task.priority === state.filters.priority;
+      
+      // Assignee filter
+      const matchesAssignee = !state.filters.assigneeId || task.assigneeId === state.filters.assigneeId;
+      
+      // Creator filter
+      const matchesCreator = !state.filters.creatorId || task.creatorId === state.filters.creatorId;
+      
+      // Department filter
+      const matchesDepartment = !state.filters.department || task.department === state.filters.department;
+      
+      // Date range filter
+      const matchesDateRange = !state.filters.dateRange.start || !state.filters.dateRange.end ||
+        (task.dueDate && 
+         new Date(task.dueDate) >= state.filters.dateRange.start && 
+         new Date(task.dueDate) <= state.filters.dateRange.end);
+      
+      return matchesSearch && matchesCategory && matchesStatus && 
+             matchesPriority && matchesAssignee && matchesCreator && matchesDepartment && matchesDateRange;
+    });
+    
+    return filteredTasks;
+  }
+);
+
+export const selectMyTasksLoading = createSelector(
+  selectTaskState,
+  (state: TaskState) => state.myTasksLoading
+);
+
+export const selectTaskStatistics = createSelector(
+  selectTaskState,
+  (state: TaskState) => state.statistics
+);
+
+export const selectTaskStatisticsLoading = createSelector(
+  selectTaskState,
+  (state: TaskState) => state.statisticsLoading
+);
+
 export const selectTasksError = createSelector(
   selectTaskState,
   (state: TaskState) => state.error

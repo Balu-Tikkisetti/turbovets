@@ -8,6 +8,7 @@ import { TaskModule } from '../task/task.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { DepartmentModule } from '../department/department.module';
+import { StatisticsModule } from '../statistics/statistics.module';
 
 @Module({
   imports: [
@@ -17,7 +18,8 @@ import { DepartmentModule } from '../department/department.module';
     AuthModule,
     AuditLogModule,
     AnalyticsModule,
-    DepartmentModule
+    DepartmentModule,
+    StatisticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

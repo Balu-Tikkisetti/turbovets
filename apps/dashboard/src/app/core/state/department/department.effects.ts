@@ -3,6 +3,7 @@ import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { catchError, map, switchMap, withLatestFrom, filter } from 'rxjs/operators';
 import { of } from 'rxjs';
+import { DepartmentService } from '../../services/department.service';
 import { UserService } from '../../services/user.service';
 import { 
   loadDepartments, 
@@ -20,6 +21,7 @@ import { selectDepartmentState } from './department.selectors';
 @Injectable()
 export class DepartmentEffects {
   private actions$ = inject(Actions);
+  private departmentService = inject(DepartmentService);
   private userService = inject(UserService);
   private store = inject(Store);
 
@@ -44,7 +46,7 @@ export class DepartmentEffects {
       }),
       switchMap(() => {
         console.log('Loading departments from API...');
-        return this.userService.getDepartments().pipe(
+        return this.departmentService.getDepartmentNames().pipe(
           map((departments) => {
             console.log('Departments loaded successfully:', departments);
             return loadDepartmentsSuccess({ departments });

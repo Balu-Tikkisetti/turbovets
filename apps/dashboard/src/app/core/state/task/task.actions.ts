@@ -31,6 +31,28 @@ export const loadTasksFailure = createAction(
   props<{ error: string }>()
 );
 
+// Load My Tasks Actions
+export const loadMyTasks = createAction('[Tasks] Load My Tasks');
+export const loadMyTasksSuccess = createAction(
+  '[Tasks] Load My Tasks Success',
+  props<{ tasks: Task[] }>()
+);
+export const loadMyTasksFailure = createAction(
+  '[Tasks] Load My Tasks Failure',
+  props<{ error: string }>()
+);
+
+// Load Task Statistics Actions
+export const loadTaskStatistics = createAction('[Tasks] Load Task Statistics');
+export const loadTaskStatisticsSuccess = createAction(
+  '[Tasks] Load Task Statistics Success',
+  props<{ statistics: any }>()
+);
+export const loadTaskStatisticsFailure = createAction(
+  '[Tasks] Load Task Statistics Failure',
+  props<{ error: string }>()
+);
+
 // Create Task Actions
 export const createTask = createAction(
   '[Tasks] Create Task',
@@ -147,5 +169,19 @@ export const moveTaskToDepartmentSuccess = createAction(
 );
 export const moveTaskToDepartmentFailure = createAction(
   '[Tasks] Move Task To Department Failure',
+  props<{ error: string }>()
+);
+
+// Assign Task Actions
+export const assignTask = createAction(
+  '[Tasks] Assign Task',
+  props<{ taskId: string; assigneeId: string }>()
+);
+export const assignTaskSuccess = createAction(
+  '[Tasks] Assign Task Success',
+  props<{ task: Task }>()
+);
+export const assignTaskFailure = createAction(
+  '[Tasks] Assign Task Failure',
   props<{ error: string }>()
 );

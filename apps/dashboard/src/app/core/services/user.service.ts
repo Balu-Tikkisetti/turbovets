@@ -38,18 +38,7 @@ export class UserService {
     );
   }
 
-  // New department-based methods
-  getDepartments(): Observable<string[]> {
-    const headers = this.jwtRefreshService.getAuthHeaders();
-    console.log('Making API call to get departments:', `${this.apiUrl}/departments`);
-    console.log('Headers:', headers);
 
-    return this.http.get<string[]>(`${this.apiUrl}/departments`, { 
-      headers
-    }).pipe(
-      catchError(this.handleError)
-    );
-  }
 
   getUsersByDepartment(
     department: string, 

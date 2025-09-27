@@ -1,0 +1,48 @@
+<div class="chart-container chart-fade-in">
+  <h3 class="chart-title">
+    {{ title }}
+  </h3>
+  
+  @if (statisticsLoading) {
+    <div class="loading-container">
+      <div class="loading-enterprise-3d"></div>
+      <span class="loading-text">Loading statistics...</span>
+    </div>
+  } @else if (chartData && chartData.datasets && chartData.datasets.length > 0 && chartData.datasets[0].data) {
+    <div class="chart-wrapper">
+      <div class="h-48 chart-hover chart-optimized">
+        <canvas 
+          baseChart
+          [data]="chartData"
+          [options]="chartOptions"
+          [type]="chartType"
+          class="w-full h-full chart-accessible">
+        </canvas>
+      </div>
+      
+      <!-- Department Legend -->
+      @if (dataType === 'department' && allDepartments.length > 0) {
+        <div class="department-legend">
+          <h4 class="legend-title">Departments</h4>
+          <div class="legend-grid">
+            @for (dept of allDepartments; track dept) {
+              <div class="legend-item">
+                <div class="legend-color" [style.background-color]="getDepartmentColor(dept)"></div>
+                <span class="legend-text">{{ dept }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="chart-empty">
+      <div class="chart-empty-icon">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+      </div>
+      <div class="chart-empty-text">No data available for this chart.</div>
+    </div>
+  }
+</div>

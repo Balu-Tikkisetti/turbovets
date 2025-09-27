@@ -1,94 +1,62 @@
 <div class="tasks-container min-h-screen bg-gray-50 dark:bg-gray-900">
   <!-- Advanced Header with Gradient -->
-  <div class="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white shadow-xl">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-        <!-- Header Left -->
-        <div class="flex-1">
-          <h1 class="text-4xl font-bold mb-2">Task Management</h1>
-          <p class="text-blue-100 text-lg">Advanced task tracking and collaboration platform</p>
-        </div>
-        
-        <!-- Header Right -->
-        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <!-- Completion Progress -->
-          
-          
-          <!-- Quick Stats -->
-          <div class="flex gap-4">
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-center">
-              <div class="text-2xl font-bold">{{ (taskStats$ | async)?.total || 0 }}</div>
-              <div class="text-sm text-blue-100">Total Tasks</div>
-            </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-center">
-              <div class="text-2xl font-bold text-green-300">{{ (taskStats$ | async)?.completed || 0 }}</div>
-              <div class="text-sm text-blue-100">Completed</div>
-            </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-center">
-              <div class="text-2xl font-bold text-yellow-300">{{ (taskStats$ | async)?.pending || 0 }}</div>
-              <div class="text-sm text-blue-100">Pending</div>
-            </div>
-            <div class="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-center">
-              <div class="text-2xl font-bold text-purple-300">{{ (taskStats$ | async)?.inProgress || 0 }}</div>
-              <div class="text-sm text-blue-100">In Progress</div>
-            </div>
-          </div>
-          
-        </div>
-      </div>
-    </div>
-  </div>
+  
 
   <!-- Main Content -->
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     
     <!-- Advanced Controls Bar -->
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div class="flex flex-col gap-6">
         
-        <!-- Search and Filters -->
-        <div class="flex flex-col sm:flex-row gap-4 flex-1">
+        <!-- Search and Filters Row -->
+        <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
           <!-- Search -->
           <div class="relative flex-1 max-w-md">
             <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400"></i>
             <input 
               type="text" 
               placeholder="Search tasks..."
-              [(ngModel)]="searchTerm"
+              [(ngModel)]="filters.searchTerm"
               (input)="onSearchChange()"
               class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
           </div>
           
           <!-- Quick Filters -->
-          <div class="flex gap-2">
+          <div class="flex gap-2 flex-wrap">
             <button 
               *ngFor="let filter of quickFilters"
               (click)="applyQuickFilter(filter)"
-              [class]="'px-3 py-2 rounded-lg text-sm font-medium transition-colors ' + (activeFilter === filter ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600')"
+              [class]="getQuickFilterClasses(filter)"
             >
               {{ filter }}
             </button>
           </div>
         </div>
         
+        <!-- Task Count Section -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4 text-center border border-blue-200 dark:border-blue-700">
+            <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ (taskStats$ | async)?.total || 0 }}</div>
+            <div class="text-sm text-blue-600 dark:text-blue-400 font-medium">Total Tasks</div>
+          </div>
+          <div class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-4 text-center border border-green-200 dark:border-green-700">
+            <div class="text-3xl font-bold text-green-600 dark:text-green-400">{{ (taskStats$ | async)?.completed || 0 }}</div>
+            <div class="text-sm text-green-600 dark:text-green-400 font-medium">Completed</div>
+          </div>
+          <div class="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-lg p-4 text-center border border-orange-200 dark:border-orange-700">
+            <div class="text-3xl font-bold text-orange-600 dark:text-orange-400">{{ (taskStats$ | async)?.inProgress || 0 }}</div>
+            <div class="text-sm text-orange-600 dark:text-orange-400 font-medium">In Progress</div>
+          </div>
+          <div class="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-lg p-4 text-center border border-red-200 dark:border-red-700">
+            <div class="text-3xl font-bold text-red-600 dark:text-red-400">{{ (taskStats$ | async)?.overdue || 0 }}</div>
+            <div class="text-sm text-red-600 dark:text-red-400 font-medium">Overdue</div>
+          </div>
+        </div>
+        
         <!-- View Controls -->
         <div class="flex items-center gap-4">
-          <!-- Sort Dropdown -->
-          <div class="relative">
-            <select 
-              [(ngModel)]="sortField"
-              (change)="onSortChange()"
-              class="appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="createdAt">Created Date</option>
-              <option value="dueDate">Due Date</option>
-              <option value="priority">Priority</option>
-              <option value="status">Status</option>
-              <option value="title">Title</option>
-            </select>
-            <i data-lucide="chevron-down" class="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"></i>
-          </div>
           
           <!-- View Mode Toggle -->
           <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
@@ -261,7 +229,7 @@
               <div class="col-span-2">Priority</div>
               <div class="col-span-2">Status</div>
               <div class="col-span-2">Due Date</div>
-              <div class="col-span-1">Actions</div>
+             
             </div>
           </div>
           
@@ -356,6 +324,15 @@
                 title="Edit task"
               >
                 <i data-lucide="edit" class="w-4 h-4"></i>
+              </button>
+            }
+            @if (canReassignTask()) {
+              <button 
+                (click)="editTask(task); $event.stopPropagation()"
+                class="p-2 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                title="Assign task"
+              >
+                <i data-lucide="user-plus" class="w-4 h-4"></i>
               </button>
             }
             @if (canDeleteTask(task)) {
@@ -578,6 +555,36 @@
                 >
               </div>
             </div>
+
+            <!-- Assignee Field (only for Owners and Admins) -->
+            @if (currentUser && (currentUser.role === 'Owner' || currentUser.role === 'Admin')) {
+              <div>
+                <label for="assigneeId" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Assign To
+                </label>
+                <select 
+                  id="assigneeId"
+                  [(ngModel)]="taskForm.assigneeId" 
+                  name="assigneeId"
+                  class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  [disabled]="loadingAssignableUsers"
+                >
+                  <option value="">Unassigned</option>
+                  @if (loadingAssignableUsers) {
+                    <option disabled>Loading users...</option>
+                  } @else {
+                    @for (user of assignableUsers; track user.id) {
+                      <option [value]="user.id">
+                        {{ user.username }} ({{ user.role }})
+                        @if (user.department) {
+                          - {{ user.department }}
+                        }
+                      </option>
+                    }
+                  }
+                </select>
+              </div>
+            }
           </div>
         </form>
       </div>
