@@ -65,6 +65,11 @@
           [class.today]="day.isToday"
           [class.selected]="day.isSelected"
           (click)="selectDate(day.date)"
+          (keydown.enter)="selectDate(day.date)"
+          (keydown.space)="selectDate(day.date)"
+          tabindex="0"
+          role="button"
+          [attr.aria-label]="'Select date ' + formatDay(day.date)"
         >
         <div class="day-number">{{ formatDay(day.date) }}</div>
         
@@ -76,6 +81,11 @@
               [class]="getTaskColor(task)"
               [title]="task.title"
               (click)="openTaskDetailsModal(task); $event.stopPropagation()"
+              (keydown.enter)="openTaskDetailsModal(task); $event.stopPropagation()"
+              (keydown.space)="openTaskDetailsModal(task); $event.stopPropagation()"
+              tabindex="0"
+              role="button"
+              [attr.aria-label]="'View task: ' + task.title"
             >
               <span class="task-title">{{ task.title }}</span>
             </div>
@@ -86,6 +96,11 @@
             <div 
               class="more-tasks"
               (click)="openTaskModal(undefined, day.date); $event.stopPropagation()"
+              (keydown.enter)="openTaskModal(undefined, day.date); $event.stopPropagation()"
+              (keydown.space)="openTaskModal(undefined, day.date); $event.stopPropagation()"
+              tabindex="0"
+              role="button"
+              [attr.aria-label]="'View ' + (day.tasks.length - 3) + ' more tasks'"
             >
               +{{ day.tasks.length - 3 }} more
             </div>
@@ -108,6 +123,11 @@
           [class.today]="day.isToday"
           [class.selected]="day.isSelected"
           (click)="selectDate(day.date)"
+          (keydown.enter)="selectDate(day.date)"
+          (keydown.space)="selectDate(day.date)"
+          tabindex="0"
+          role="button"
+          [attr.aria-label]="'Select date ' + formatDay(day.date)"
         >
         <div class="week-day-name">{{ formatWeekday(day.date) }}</div>
         <div class="week-day-number">{{ formatDay(day.date) }}</div>
@@ -136,6 +156,11 @@
               class="week-task"
               [class]="getTaskColor(task)"
               (click)="openTaskDetailsModal(task)"
+              (keydown.enter)="openTaskDetailsModal(task)"
+              (keydown.space)="openTaskDetailsModal(task)"
+              tabindex="0"
+              role="button"
+              [attr.aria-label]="'View task: ' + task.title"
             >
               @if (task.dueTime) {
                 <div class="task-time">
@@ -178,6 +203,11 @@
             class="day-task"
             [class]="getTaskColor(task)"
             (click)="openTaskDetailsModal(task)"
+            (keydown.enter)="openTaskDetailsModal(task)"
+            (keydown.space)="openTaskDetailsModal(task)"
+            tabindex="0"
+            role="button"
+            [attr.aria-label]="'View task: ' + task.title"
           >
           <div class="task-header">
             <div class="task-title">{{ task.title }}</div>
@@ -230,8 +260,8 @@
 
 <!-- Task Modal -->
 @if (showTaskModal) {
-  <div class="modal-overlay" (click)="closeTaskModal()">
-  <div class="modal-content" (click)="$event.stopPropagation()">
+  <div class="modal-overlay" (click)="closeTaskModal()" (keydown.escape)="closeTaskModal()" tabindex="0">
+  <div class="modal-content" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" tabindex="-1">
     <div class="modal-header">
       <h3>{{ selectedTask ? 'Edit Task' : 'Create Task' }}</h3>
       <button (click)="closeTaskModal()" class="btn-icon">
@@ -240,7 +270,7 @@
     </div>
     
     <div class="modal-body">
-      <form (ngSubmit)="saveTask()">
+      <form name="taskForm" (ngSubmit)="saveTask()">
         <div class="form-group">
           <label for="title">Title *</label>
           <input 
@@ -373,8 +403,8 @@
 
 <!-- Task Details Modal (Read-Only) -->
 @if (showTaskDetailsModal && selectedTask) {
-  <div class="modal-overlay" (click)="closeTaskDetailsModal()">
-  <div class="modal-content task-details-modal" (click)="$event.stopPropagation()">
+  <div class="modal-overlay" (click)="closeTaskDetailsModal()" (keydown.escape)="closeTaskDetailsModal()" tabindex="0">
+  <div class="modal-content task-details-modal" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" tabindex="-1">
     <div class="modal-header">
       <h3>Task Details</h3>
       <button (click)="closeTaskDetailsModal()" class="btn-icon">
@@ -395,16 +425,16 @@
         <!-- Task Status and Priority -->
         <div class="detail-row">
           <div class="detail-item">
-            <label>Status</label>
-            <span class="status-badge" [class]="getTaskStatusColor(selectedTask.status)">
+            <label for="status-display">Status</label>
+            <span id="status-display" class="status-badge" [class]="getTaskStatusColor(selectedTask.status)">
               <i [attr.data-lucide]="getStatusIcon(selectedTask.status)"></i>
               {{ selectedTask.status | titlecase }}
             </span>
           </div>
           
           <div class="detail-item">
-            <label>Priority</label>
-            <span class="priority-badge" [class]="getTaskPriorityColor(selectedTask.priority)">
+            <label for="priority-display">Priority</label>
+            <span id="priority-display" class="priority-badge" [class]="getTaskPriorityColor(selectedTask.priority)">
               <i [attr.data-lucide]="getPriorityIcon(selectedTask.priority)"></i>
               {{ selectedTask.priority | titlecase }}
             </span>
@@ -414,8 +444,8 @@
         <!-- Task Category and Department -->
         <div class="detail-row">
           <div class="detail-item">
-            <label>Category</label>
-            <span class="category-badge">
+            <label for="category-display">Category</label>
+            <span id="category-display" class="category-badge">
               <i [attr.data-lucide]="getCategoryIcon(selectedTask.category)"></i>
               {{ selectedTask.category | titlecase }}
             </span>
@@ -423,8 +453,8 @@
           
           @if (selectedTask.department) {
             <div class="detail-item">
-              <label>Department</label>
-              <span class="department-badge">{{ selectedTask.department }}</span>
+              <label for="department-display">Department</label>
+              <span id="department-display" class="department-badge">{{ selectedTask.department }}</span>
             </div>
           }
         </div>
@@ -433,8 +463,8 @@
         @if (selectedTask.dueDate) {
           <div class="detail-row">
             <div class="detail-item">
-              <label>Due Date</label>
-              <span class="date-info">
+              <label for="due-date-display">Due Date</label>
+              <span id="due-date-display" class="date-info">
                 <i data-lucide="calendar"></i>
                 {{ formatFullDate(selectedTask.dueDate) }}
               </span>
@@ -442,8 +472,8 @@
             
             @if (selectedTask.dueTime) {
               <div class="detail-item">
-                <label>Due Time</label>
-                <span class="time-info">
+                <label for="due-time-display">Due Time</label>
+                <span id="due-time-display" class="time-info">
                   <i data-lucide="clock"></i>
                   {{ formatTime(selectedTask.dueTime) }}
                 </span>
@@ -455,8 +485,8 @@
         <!-- Task Metadata -->
         <div class="detail-row">
           <div class="detail-item">
-            <label>Created</label>
-            <span class="meta-info">
+            <label for="created-display">Created</label>
+            <span id="created-display" class="meta-info">
               <i data-lucide="calendar-plus"></i>
               {{ getRelativeTime(selectedTask.createdAt) }}
             </span>
@@ -464,8 +494,8 @@
           
           @if (selectedTask.updatedAt && selectedTask.updatedAt !== selectedTask.createdAt) {
             <div class="detail-item">
-              <label>Last Updated</label>
-              <span class="meta-info">
+              <label for="updated-display">Last Updated</label>
+              <span id="updated-display" class="meta-info">
                 <i data-lucide="edit"></i>
                 {{ getRelativeTime(selectedTask.updatedAt) }}
               </span>
