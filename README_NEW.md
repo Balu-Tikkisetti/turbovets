@@ -1,44 +1,67 @@
+
 # TurboVets - Secure Task Management System
 
-A comprehensive, secure task management system built with **NX monorepo**, featuring **Role-Based Access Control (RBAC)**, **JWT authentication**, and **organization-wide task visibility**.
+A comprehensive, secure task management system built with **NX monorepo**, featuring **Role-Based Access Control (RBAC)**, **JWT authentication**, and **organization-wide task visibility**.  
 
-## 🏗️ Architecture Overview
+**Tech Stack:** NX • NestJS • Angular • TypeScript • PostgreSQL (with SQLite fallback)
 
-### NX Monorepo Structure
-```
-turbovets/
-├── apps/
-│   ├── api/                 # NestJS Backend API
-│   ├── dashboard/           # Angular Frontend
-│   ├── api-e2e/            # API End-to-End Tests
-│   └── dashboard-e2e/      # Dashboard E2E Tests
-├── libs/
-│   ├── auth/               # Shared RBAC logic & decorators
-│   └── data/               # Shared TypeScript interfaces & DTOs
-└── dist/                   # Built applications
-```
+---
 
-## 🚀 Quick Start
-
-### Prerequisites
+## Prerequisites
 - Node.js 18+ 
 - npm or yarn
-- PostgreSQL (optional, SQLite used by default)
+- PostgreSQL 15+ (default is SQLite for quick start)
 
-### Installation & Setup
+---
 
-1. **Clone and Install Dependencies**
+## Database Setup (PostgreSQL)
+
+### Install PostgreSQL
+- **Mac (Homebrew)**:
+  ```bash
+  brew install postgresql@15
+  brew services start postgresql@15
+  ```
+- **Ubuntu/Debian**:
+  ```bash
+  sudo apt update
+  sudo apt install postgresql-15 postgresql-client-15
+  sudo service postgresql start
+  ```
+- **Windows**: [Download PostgreSQL 15 installer](https://www.postgresql.org/download/windows/)
+
+### Create Database and User
+Login as postgres superuser:
+```bash
+psql -U postgres
+```
+
+Run these SQL commands:
+```sql
+CREATE USER balu WITH PASSWORD 'balu';
+CREATE DATABASE turbovets OWNER balu;
+GRANT ALL PRIVILEGES ON DATABASE turbovets TO balu;
+```
+
+---
+
+## Project Installation & Setup
+
+### 1. Clone and Install Dependencies
 ```bash
 git clone <repository-url>
 cd turbovets
 npm install
 ```
 
-2. **Environment Configuration**
+### 2. Environment Configuration
 Create `.env` file in the root directory:
 ```env
-# Database
+# Database (SQLite default)
 DATABASE_URL=sqlite:./data/database.sqlite
+
+# PostgreSQL (Uncomment for production or local use)
+# DATABASE_URL=postgresql://balu:balu@localhost:5432/turbovets
 
 # JWT Configuration
 JWT_SECRET=your-super-secret-jwt-key-here
@@ -52,21 +75,40 @@ API_HOST=localhost
 NG_APP_API_URL=http://localhost:3000
 ```
 
-3. **Start Development Servers**
+### 3. Run Development Servers
 ```bash
 # Start both API and Dashboard concurrently
 npm run dev
 
-# Or start individually:
-npm run start:api      # Backend on http://localhost:3000
-npm run start:dashboard # Frontend on http://localhost:4200
+# Start API only
+npm run start:api
+
+# Start Dashboard only
+npm run start:dashboard
 ```
 
-## 🔐 Access Control Implementation
+---
 
-### Role-Based Access Control (RBAC)
+## Available Scripts
+```bash
+npm run dev              # Start both API and Dashboard
+npm run start:api        # Start API server only
+npm run start:dashboard  # Start Dashboard only
+npm run build            # Build all applications
+npm run lint             # Lint all code
+npm test                 # Run all tests
+npm run test:api         # Run API tests
+npm run test:dashboard   # Run Dashboard tests
+npm run test:e2e         # Run E2E tests
+npm run test:coverage    # Run tests with coverage
+npm run build:production # Build for production
+```
 
-#### Role Hierarchy
+---
+
+## Access Control (RBAC)
+
+### Role Hierarchy
 ```
 Owner (Highest)
 ├── Can access everything
@@ -87,17 +129,20 @@ Viewer
 └── Limited audit log access
 ```
 
-### JWT Authentication Flow
-1. **Login**: User provides credentials
-2. **Token Generation**: JWT access token (15min) + refresh token (7 days)
-3. **Request Authorization**: Bearer token in Authorization header
-4. **Token Validation**: JWT strategy validates and extracts user info
-5. **Role Checking**: Guards verify permissions for each endpoint
+---
 
-## 📡 API Documentation
+## JWT Authentication Flow
+1. **Login**: User provides credentials  
+2. **Token Generation**: JWT access token (15min) + refresh token (7 days)  
+3. **Request Authorization**: Bearer token in Authorization header  
+4. **Token Validation**: JWT strategy validates and extracts user info  
+5. **Role Checking**: Guards verify permissions for each endpoint  
+
+---
+
+## API Documentation
 
 ### Authentication Endpoints
-
 #### POST `/auth/login`
 ```json
 {
@@ -116,7 +161,6 @@ Viewer
 ```
 
 ### Task Management Endpoints
-
 #### GET `/tasks`
 **Headers:** `Authorization: Bearer <token>`
 
@@ -138,67 +182,39 @@ Viewer
 #### POST `/tasks/bulk-update-status`
 
 ### Audit Log Endpoints
-
 #### GET `/audit-log`
 **Headers:** `Authorization: Bearer <token>` (Owner/Admin only)
 
-## 🧪 Testing
+---
 
-### Running Tests
-```bash
-# Run all tests
-npm test
-
-# Run API tests only
-npm run test:api
-
-# Run Dashboard tests only
-npm run test:dashboard
-
-# Run E2E tests
-npm run test:e2e
-
-# Run tests with coverage
-npm run test:coverage
-```
-
-## 🎨 Frontend Features
+## Frontend Features
 
 ### Task Management Dashboard
-- **Organization-wide Task View**: All authenticated users can see all tasks
-- **Real-time Updates**: Automatic task refresh every minute
-- **Advanced Filtering**: By status, priority, category, department
-- **Bulk Operations**: Bulk delete and status updates
-- **Responsive Design**: Mobile-first approach with Tailwind CSS
+- **Organization-wide Task View**: All authenticated users can see all tasks  
+- **Real-time Updates**: Automatic task refresh every minute  
+- **Advanced Filtering**: By status, priority, category, department  
+- **Bulk Operations**: Bulk delete and status updates  
+- **Responsive Design**: Mobile-first approach with Tailwind CSS  
 
 ### Authentication UI
-- **Login/Register Forms**: Clean, accessible forms
-- **JWT Token Management**: Automatic token refresh
-- **Route Protection**: Authenticated routes only
+- **Login/Register Forms**: Clean, accessible forms  
+- **JWT Token Management**: Automatic token refresh  
+- **Route Protection**: Authenticated routes only  
 
 ### State Management (NgRx)
-- **Actions**: Task CRUD, filtering, sorting
-- **Reducers**: State management for tasks and auth
-- **Effects**: API communication and side effects
-- **Selectors**: Efficient data selection
+- **Actions**: Task CRUD, filtering, sorting  
+- **Reducers**: State management for tasks and auth  
+- **Effects**: API communication and side effects  
+- **Selectors**: Efficient data selection  
 
-## 🔧 Development
+---
 
-### Available Scripts
-```bash
-npm run dev              # Start both API and Dashboard
-npm run start:api        # Start API server only
-npm run start:dashboard  # Start Dashboard only
-npm run build            # Build all applications
-npm run lint             # Lint all code
-```
-
-## 🚀 Production Deployment
+## Production Deployment
 
 ### Environment Variables
 ```env
-# Production Database
-DATABASE_URL=postgresql://user:password@prod-db:5432/turbovets
+# Production Database (PostgreSQL)
+DATABASE_URL=postgresql://balu:balu@prod-db:5432/turbovets
 
 # Secure JWT Secret
 JWT_SECRET=your-production-secret-key-here
@@ -207,25 +223,27 @@ JWT_SECRET=your-production-secret-key-here
 CORS_ORIGIN=https://yourdomain.com
 ```
 
-### Build for Production
+### Build and Run
 ```bash
 npm run build:production
 ```
 
-## 🔮 Future Considerations
+---
+
+## Future Considerations
 
 ### Advanced Features
-- **Role Delegation**: Temporary role assignment
-- **Advanced Permissions**: Granular permission system
-- **Multi-tenancy**: Support for multiple organizations
-- **Real-time Collaboration**: WebSocket-based live updates
+- **Role Delegation**: Temporary role assignment  
+- **Advanced Permissions**: Granular permission system  
+- **Multi-tenancy**: Support for multiple organizations  
+- **Real-time Collaboration**: WebSocket-based live updates  
 
 ### Security Enhancements
-- **JWT Refresh Tokens**: Secure token renewal
-- **CSRF Protection**: Cross-site request forgery prevention
-- **Rate Limiting**: API request throttling
-- **RBAC Caching**: Redis-based permission caching
+- **JWT Refresh Tokens**: Secure token renewal  
+- **CSRF Protection**: Cross-site request forgery prevention  
+- **Rate Limiting**: API request throttling  
+- **RBAC Caching**: Redis-based permission caching  
 
 ---
 
-**Built with ❤️ using NX, NestJS, Angular, and TypeScript**
+**Built with:** NX • NestJS • Angular • TypeScript • PostgreSQL

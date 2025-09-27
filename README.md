@@ -80,3 +80,7 @@ And join the Nx community:
 - [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
 - [Our Youtube channel](https://www.youtube.com/@nxdevtools)
 - [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+
+
+## Check the README_new.md for more installation remember to run the both application which are in the apps i.e api(backend) dashboard(frontnend)
+## open two terminals from root directory Turbovets run one terminal- npx nx serve api  second termincal- npx nx serve dashboard 
