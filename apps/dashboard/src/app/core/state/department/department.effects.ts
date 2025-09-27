@@ -34,21 +34,14 @@ export class DepartmentEffects {
         // Only load if data is stale or empty
         const isStale = !state.lastUpdated || (Date.now() - state.lastUpdated) > 5 * 60 * 1000;
         const shouldLoad = state.departments.length === 0 || isStale;
-        console.log('Department loading filter check:', {
-          loading: state.loading.departments,
-          departmentsCount: state.departments.length,
-          isStale,
-          shouldLoad,
-          lastUpdated: state.lastUpdated
-        });
-        console.log('Filter result:', shouldLoad);
+
         return shouldLoad;
       }),
       switchMap(() => {
-        console.log('Loading departments from API...');
+ 
         return this.departmentService.getDepartmentNames().pipe(
           map((departments) => {
-            console.log('Departments loaded successfully:', departments);
+ 
             return loadDepartmentsSuccess({ departments });
           }),
           catchError((error) => {
@@ -92,10 +85,9 @@ export class DepartmentEffects {
         return !state.assignableUsers || isStale || !departmentMatches;
       }),
       switchMap(([{ department, excludeCurrentUser }]) => {
-        console.log('Loading assignable users for department:', department);
+  
         return this.userService.getAssignableUsers(department, excludeCurrentUser).pipe(
           map((users) => {
-            console.log('Assignable users loaded:', users);
             return loadAssignableUsersSuccess({ users, department });
           }),
           catchError((error) => {

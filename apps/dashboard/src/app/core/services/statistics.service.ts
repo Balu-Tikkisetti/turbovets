@@ -25,7 +25,6 @@ export class StatisticsService {
 
   // Get task statistics
   getTaskStatistics(): Observable<TaskStatistics> {
-    console.log('StatisticsService: Getting task statistics from:', `${this.apiUrl}/tasks`);
     const headers = this.getHeaders();
     
     return this.http.get<TaskStatistics>(`${this.apiUrl}/tasks`, {

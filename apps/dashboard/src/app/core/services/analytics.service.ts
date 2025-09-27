@@ -35,9 +35,6 @@ export class AnalyticsService {
       if (filters.endDate) params = params.set('endDate', filters.endDate.toISOString());
     }
 
-    console.log('Analytics Service: Making request to:', this.baseUrl);
-    console.log('Analytics Service: With params:', params.toString());
-    console.log('Analytics Service: With headers:', this.getHeaders());
 
     return this.http.get<{ success: boolean; data: AnalyticsData; timestamp: string }>(this.baseUrl, { 
       params,

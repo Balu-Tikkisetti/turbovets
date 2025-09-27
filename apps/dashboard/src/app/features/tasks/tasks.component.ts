@@ -272,12 +272,12 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    console.log('TasksComponent: Initializing...');
+
     
     // Subscribe to current user for permission checks
     this.currentUser$.subscribe(user => {
       this.currentUser = user;
-      console.log('Current user:', user);
+
       
       // Load assignable users if user is Owner or Admin
       if (user && (user.role === Role.Owner || user.role === Role.Admin)) {
@@ -287,10 +287,10 @@ export class TasksComponent implements OnInit, OnDestroy {
     
     // Load tasks data based on task type
     if (this.taskType === 'my') {
-      console.log('TasksComponent: Dispatching loadMyTasks action');
+
       this.store.dispatch(loadMyTasks());
     } else {
-      console.log('TasksComponent: Dispatching loadTasks action');
+    
       this.store.dispatch(loadTasks());
     }
     
@@ -319,7 +319,7 @@ export class TasksComponent implements OnInit, OnDestroy {
     
     // Set up real-time updates
     const interval = setInterval(() => {
-      console.log('TasksComponent: Auto-refreshing tasks...');
+
       if (this.taskType === 'my') {
         this.store.dispatch(loadMyTasks());
       } else {
@@ -374,7 +374,6 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
 
   retryLoadTasks() {
-    console.log('TasksComponent: Retrying to load tasks...');
     if (this.taskType === 'my') {
       this.store.dispatch(loadMyTasks());
     } else {
@@ -489,7 +488,6 @@ export class TasksComponent implements OnInit, OnDestroy {
     const confirmed = confirm(`Are you sure you want to delete ${this.selectedTasks.size} selected task(s)?\n\nThis action cannot be undone.`);
     if (confirmed) {
       const taskIds = Array.from(this.selectedTasks);
-      console.log('Frontend: Dispatching bulk delete with taskIds:', taskIds);
       this.store.dispatch(bulkDeleteTasks({ taskIds }));
       
       // Clear selection after dispatching deletion
@@ -984,7 +982,7 @@ export class TasksComponent implements OnInit, OnDestroy {
       next: (users) => {
         this.assignableUsers = users;
         this.loadingAssignableUsers = false;
-        console.log('Loaded assignable users:', users);
+
       },
       error: (error) => {
         console.error('Error loading assignable users:', error);

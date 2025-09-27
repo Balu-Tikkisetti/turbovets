@@ -116,7 +116,7 @@ export class StatisticsChartComponent implements OnInit, OnDestroy {
   };
 
   ngOnInit() {
-    console.log('Statistics Component: Initializing...');
+
     
     // Load departments from database first
     this.loadDepartments();
@@ -136,7 +136,7 @@ export class StatisticsChartComponent implements OnInit, OnDestroy {
     this.departmentService.getDepartmentNames().subscribe({
       next: (departmentNames: string[]) => {
         this.allDepartments = departmentNames;
-        console.log('Loaded department names from database:', departmentNames);
+
       },
       error: (error: unknown) => {
         console.error('Error loading department names:', error);
@@ -147,12 +147,12 @@ export class StatisticsChartComponent implements OnInit, OnDestroy {
   }
 
   private loadStatistics() {
-    console.log('Statistics Component: Loading statistics from StatisticsService...');
+
     this.statisticsLoading = true;
     
     this.statisticsService.getTaskStatistics().subscribe({
       next: (statistics: TaskStatistics) => {
-        console.log('Statistics Component: Received statistics data:', statistics);
+
         this.currentStatistics = statistics;
         this.updateChartData(statistics);
         this.statisticsLoading = false;
@@ -189,18 +189,17 @@ export class StatisticsChartComponent implements OnInit, OnDestroy {
           // Use departments from statistics data (real departments from database)
           labels = departmentNames.map(dept => this.getShortDepartmentName(dept));
           data = departmentNames.map(dept => departmentData[dept] || 0);
-          console.log('Statistics Component: Using departments from statistics data');
+        
         } else {
           // If no departments in data, show a message or use fallback
-          console.log('Statistics Component: No departments found in statistics data');
+   
           labels = ['No Departments'];
           data = [0];
-          console.log('Statistics Component: Using fallback - no departments');
+   
         }
         
         backgroundColor = this.getEnterpriseColors(labels.length);
-        console.log('Statistics Component: Final department labels:', labels);
-        console.log('Statistics Component: Final department data:', data);
+
         break;
       }
         
@@ -240,12 +239,7 @@ export class StatisticsChartComponent implements OnInit, OnDestroy {
       }]
     };
     
-    console.log('Statistics Component: Chart updated with data:', {
-      labels: labels.length,
-      data: data.length,
-      chartType: this.chartType,
-      dataType: this.dataType
-    });
+
   }
 
   private getDepartmentColors(count: number): string[] {

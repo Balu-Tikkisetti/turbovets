@@ -39,7 +39,7 @@ export class AnalyticsGuard implements CanActivate {
           return false;
         }
 
-        console.log(`AnalyticsGuard: Access granted for ${user.role} user: ${user.username}`);
+   
         return true;
       })
     );

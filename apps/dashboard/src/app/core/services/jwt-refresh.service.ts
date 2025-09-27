@@ -208,7 +208,7 @@ export class JwtRefreshService {
    * Handle session timeout - logout user and redirect to login
    */
   handleSessionTimeout(): void {
-    console.log('Session timeout - logging out user');
+
     this.clearTokens();
     this.store.dispatch(logout());
     this.router.navigate(['/auth/login']);

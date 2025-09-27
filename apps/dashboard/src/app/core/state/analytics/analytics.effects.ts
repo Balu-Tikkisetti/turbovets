@@ -38,10 +38,10 @@ export class AnalyticsEffects {
       ofType(loadAnalytics),
       withLatestFrom(this.store.select(selectAnalyticsFilters)),
       switchMap(([action, filters]) => {
-        console.log('Analytics Effect: Loading analytics with filters:', filters);
+
         return this.analyticsService.getAnalytics(filters).pipe(
           map((response) => {
-            console.log('Analytics Effect: Received response:', response);
+      
             return loadAnalyticsSuccess({ data: response.data });
           }),
           catchError((error) => {

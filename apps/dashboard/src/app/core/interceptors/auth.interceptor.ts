@@ -11,13 +11,12 @@ export class AuthInterceptor implements HttpInterceptor {
   intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
     // Skip interceptor for auth endpoints (login, register, refresh)
     if (this.isAuthEndpoint(req.url)) {
-      console.log('🔓 Auth endpoint - skipping interceptor:', req.url);
+   
       return next.handle(req);
     }
 
     // Skip interceptor for public endpoints
     if (this.isPublicEndpoint(req.url)) {
-      console.log('🔓 Public endpoint - skipping interceptor:', req.url);
       return next.handle(req);
     }
 
@@ -25,24 +24,22 @@ export class AuthInterceptor implements HttpInterceptor {
     const token = this.jwtRefreshService.getAccessToken();
     const isValid = this.jwtRefreshService.isTokenValid();
     
-    console.log('🔍 Interceptor - URL:', req.url);
-    console.log('🔍 Interceptor - Token exists:', !!token);
-    console.log('🔍 Interceptor - Token valid:', isValid);
+
     
     // If no token, let the request proceed (will likely fail with 401)
     if (!token) {
-      console.log('❌ No token - request will likely fail with 401');
+
       return next.handle(req);
     }
 
     // Check if token is valid
     if (isValid) {
       // Token is valid, add it to the request
-      console.log('✅ Adding token to request');
+   
       const authReq = this.addTokenToRequest(req, token);
       return next.handle(authReq).pipe(
         catchError((error: HttpErrorResponse) => {
-          console.log('❌ Request failed with error:', error.status);
+
           if (error.status === 401) {
             return this.handle401Error(req, next);
           }
@@ -51,7 +48,6 @@ export class AuthInterceptor implements HttpInterceptor {
       );
     } else {
       // Token is expired, try to refresh
-      console.log('🔄 Token expired - attempting refresh');
       return this.handle401Error(req, next);
     }
   }

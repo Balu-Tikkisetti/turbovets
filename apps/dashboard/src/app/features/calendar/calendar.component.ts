@@ -103,7 +103,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private subscription: Subscription = new Subscription();
 
   ngOnInit() {
-    console.log('CalendarComponent: Initializing...');
+
     
     // Load tasks data
     this.store.dispatch(loadTasks());
@@ -111,7 +111,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     // Subscribe to tasks and update calendar
     this.subscription.add(
       this.filteredTasks$.subscribe(tasks => {
-        console.log('CalendarComponent: Tasks updated:', tasks?.length || 0, 'tasks');
+    
         this.updateCalendarEvents(tasks || []);
         this.generateCalendarDays();
       })

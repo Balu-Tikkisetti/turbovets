@@ -93,13 +93,11 @@ export const taskReducer = createReducer(
   })),
   
   on(loadTasksSuccess, (state, { tasks }) => {
-    console.log('TaskReducer: loadTasksSuccess received', tasks?.length || 0, 'tasks');
-    console.log('TaskReducer: Raw tasks:', tasks);
-    
+
     const sortedTasks = sortTasks(tasks, state.sort);
     const filteredTasks = applyFilters(sortedTasks, state.filters);
     
-    console.log('TaskReducer: After sorting and filtering - tasks:', sortedTasks?.length, 'filtered:', filteredTasks?.length);
+
     
     return {
       ...state,

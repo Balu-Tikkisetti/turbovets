@@ -38,9 +38,9 @@ export class TaskService {
 
   // Get all work tasks based on user role and department
   getWorkTasks(): Observable<TaskInterface[]> {
-    console.log('TaskService: Getting work tasks from:', this.apiUrl);
+ 
     const headers = this.getHeaders();
-    console.log('TaskService: Headers prepared');
+
     
     return this.http.get<TaskInterface[]>(this.apiUrl, {
       headers: headers

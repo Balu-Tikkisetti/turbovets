@@ -73,7 +73,7 @@ export class MembersComponent implements OnInit, OnDestroy {
       this.canManageUsers = user?.role === Role.Owner || 
                            user?.role?.toLowerCase() === Role.Owner.toLowerCase() ||
                            roleStr === ownerStr;
-      console.log('Can manage users:', this.canManageUsers);
+    
     });
     
     // Set up real-time updates (simulate with periodic refresh)

@@ -27,11 +27,11 @@ async function prepareDatabase() {
     );
 
     if (res.rowCount === 0) {
-      console.log(`⚡ Database "${dbName}" not found. Creating...`);
+  
       await client.query(`CREATE DATABASE "${dbName}"`);
-      console.log(` Database "${dbName}" created successfully.`);
+ 
     } else {
-      console.log(`Database "${dbName}" already exists.`);
+      console.error(`Database "${dbName}" already exists.`);
     }
   } catch (error) {
     console.error('Failed to prepare database:', error);

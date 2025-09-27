@@ -36,10 +36,10 @@ export class StatisticsEffects {
         return !lastUpdated || (Date.now() - lastUpdated) > 5 * 60 * 1000;
       }),
       switchMap(() => {
-        console.log('🔄 Loading task statistics...');
+
         return this.http.get<TaskStatistics>('/api/tasks/statistics').pipe(
           map((statistics) => {
-            console.log('✅ Task statistics loaded:', statistics);
+      
             return loadTaskStatisticsSuccess({ statistics });
           }),
           catchError((error) => {
@@ -66,14 +66,14 @@ export class StatisticsEffects {
         return !lastUpdated || (Date.now() - lastUpdated) > 5 * 60 * 1000;
       }),
       switchMap(() => {
-        console.log('🔄 Loading department statistics...');
+
         return this.http.get<DepartmentStatistics[]>('/api/statistics/departments').pipe(
           map((departmentStatistics) => {
-            console.log('✅ Department statistics loaded:', departmentStatistics);
+     
             return loadDepartmentStatisticsSuccess({ departmentStatistics });
           }),
           catchError((error) => {
-            console.error('❌ Failed to load department statistics:', error);
+            console.error(' Failed to load department statistics:', error);
             return of(loadDepartmentStatisticsFailure({ 
               error: error.message || 'Failed to load department statistics' 
             }));
