@@ -46,8 +46,7 @@ export class TaskService {
       headers: headers
     }).pipe(
       tap(tasks => {
-        console.log('TaskService: Received work tasks from backend:', tasks);
-        console.log('TaskService: Number of work tasks:', tasks?.length || 0);
+        console.log('TaskService: Received work tasks from backend:');
       }),
       catchError(error => {
         console.error('TaskService: Error fetching work tasks:', error);

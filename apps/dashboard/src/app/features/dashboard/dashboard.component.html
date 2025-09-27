@@ -316,8 +316,8 @@
                             }
                         </div>
 
-                        <!-- Full Tasks Management Component (Only for Owners and Admins) -->
-                        @if (canAccessFullTasksManagement()) {
+                        <!-- Full Tasks Management Component (Only for Admins, not Owners) -->
+                        @if (canAccessFullTasksManagementForAdmins()) {
                           <div class="mt-8">
                             
                             @if (loadingTasks) {

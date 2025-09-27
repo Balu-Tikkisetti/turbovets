@@ -31,7 +31,7 @@ export class StatisticsService {
       headers: headers
     }).pipe(
       tap(stats => {
-        console.log('StatisticsService: Received task statistics from backend:', stats);
+        console.log('StatisticsService: Received task statistics from backend:');
       }),
       catchError(this.handleError)
     );

@@ -249,6 +249,16 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     return userRole === Role.Owner || userRole === Role.Admin;
   }
 
+  // Check if user can access full tasks management in dashboard (Admins only, not Owners)
+  canAccessFullTasksManagementForAdmins(): boolean {
+    if (!this.currentUser) return false;
+    
+    const userRole = this.currentUser.role as Role;
+    
+    // Only Admins can access full tasks management in dashboard (Owners see charts and overview only)
+    return userRole === Role.Admin;
+  }
+
   // Task editing methods
   onTaskClick(task: Task): void {
     if (this.canEditTask(task)) {
