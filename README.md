@@ -36,18 +36,18 @@ npm install
 brew install postgresql@15
 brew services start postgresql@15
 
-# Create database
+# Create database and user
 psql -U postgres
-CREATE USER balu WITH PASSWORD 'balu';
-CREATE DATABASE turbovets OWNER balu;
-GRANT ALL PRIVILEGES ON DATABASE turbovets TO balu;
+CREATE USER your_username WITH PASSWORD 'your_password';
+CREATE DATABASE turbovets OWNER your_username;
+GRANT ALL PRIVILEGES ON DATABASE turbovets TO your_username;
 \q
 ```
 
 3. **Environment setup:**
 Create `.env` file:
 ```env
-DATABASE_URL=postgresql://balu:balu@localhost:5432/turbovets
+DATABASE_URL=postgresql://your_username:your_password@localhost:5432/turbovets
 JWT_SECRET=your-secret-key-here
 JWT_EXPIRES_IN=15m
 API_PORT=3000
