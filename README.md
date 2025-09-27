@@ -1,86 +1,349 @@
-# Turbovets
+# TurboVets - Secure Task Management System
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is almost ready ✨.
+A comprehensive, secure task management system built with **NX monorepo**, featuring **Role-Based Access Control (RBAC)**, **JWT authentication**, and **organization-wide task visibility**.
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/getting-started/tutorials/angular-monorepo-tutorial?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+**Tech Stack:** NX • NestJS • Angular • TypeScript • PostgreSQL (with SQLite fallback)
 
-## Finish your CI setup
+---
 
-[Click here to finish setting up your workspace!](https://cloud.nx.app/connect/m9J4C4BqRK)
+## 🚀 Quick Start
 
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
+- PostgreSQL 15+ (optional - SQLite used by default)
 
-## Run tasks
-
-To run the dev server for your app, use:
-
-```sh
-npx nx serve dashboard
+### 1. Clone and Install
+```bash
+git clone https://github.com/Balu-Tikkisetti/turbovets.git
+cd turbovets
+npm install
 ```
 
-To create a production bundle:
+### 2. Environment Setup
+Create `.env` file in the root directory:
+```env
+# Database (SQLite default - works out of the box)
+DATABASE_URL=sqlite:./data/database.sqlite
 
-```sh
-npx nx build dashboard
+# PostgreSQL (Uncomment for production or local use)
+# DATABASE_URL=postgresql://balu:balu@localhost:5432/turbovets
+
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-here
+JWT_EXPIRES_IN=15m
+
+# API Configuration
+API_PORT=3000
+API_HOST=localhost
+
+# Frontend Configuration
+NG_APP_API_URL=http://localhost:3000
 ```
 
-To see all available targets to run for a project, run:
+### 3. Run Development Servers
+```bash
+# Start both API and Dashboard concurrently
+npm run dev
 
-```sh
-npx nx show project dashboard
+# OR start them separately in different terminals:
+npx nx serve api        # Backend API (port 3000)
+npx nx serve dashboard  # Frontend Dashboard (port 4200)
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+**Access the application:**
+- Frontend: http://localhost:4200
+- Backend API: http://localhost:3000
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+---
 
-## Add new projects
+## 🗄️ Database Setup (PostgreSQL)
 
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
+### Install PostgreSQL
 
-Use the plugin's generator to create new projects.
-
-To generate a new application, use:
-
-```sh
-npx nx g @nx/angular:app demo
+**Mac (Homebrew):**
+```bash
+brew install postgresql@15
+brew services start postgresql@15
 ```
 
-To generate a new library, use:
-
-```sh
-npx nx g @nx/angular:lib mylib
+**Ubuntu/Debian:**
+```bash
+sudo apt update
+sudo apt install postgresql-15 postgresql-client-15
+sudo service postgresql start
 ```
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
+**Windows:**
+[Download PostgreSQL 15 installer](https://www.postgresql.org/download/windows/)
 
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+### Create Database and User
 
+**Login as postgres superuser:**
+```bash
+psql -U postgres
+```
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+**Run these SQL commands:**
+```sql
+-- Create user with password
+CREATE USER balu WITH PASSWORD 'balu';
 
-## Install Nx Console
+-- Create database and assign ownership
+CREATE DATABASE turbovets OWNER balu;
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+-- Grant all privileges
+GRANT ALL PRIVILEGES ON DATABASE turbovets TO balu;
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+-- Exit psql
+\q
+```
 
-## Useful links
+**Update your `.env` file:**
+```env
+DATABASE_URL=postgresql://balu:balu@localhost:5432/turbovets
+```
 
-Learn more:
+---
 
-- [Learn more about this workspace setup](https://nx.dev/getting-started/tutorials/angular-monorepo-tutorial?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## 📋 Available Scripts
 
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+```bash
+# Development
+npm run dev              # Start both API and Dashboard
+npm run start:api        # Start API server only
+npm run start:dashboard  # Start Dashboard only
 
+# Building
+npm run build            # Build all applications
+npm run build:production # Build for production
 
-## Check the README_new.md for more installation remember to run the both application which are in the apps i.e api(backend) dashboard(frontnend)
-## open two terminals from root directory Turbovets run one terminal- npx nx serve api  second termincal- npx nx serve dashboard 
+# Testing
+npm test                 # Run all tests
+npm run test:api         # Run API tests
+npm run test:dashboard   # Run Dashboard tests
+npm run test:e2e         # Run E2E tests
+npm run test:coverage    # Run tests with coverage
+
+# Code Quality
+npm run lint             # Lint all code
+
+# NX Commands
+npx nx graph             # Visualize project dependencies
+npx nx show project dashboard  # Show project details
+```
+
+---
+
+## 🔐 Access Control (RBAC)
+
+### Role Hierarchy
+```
+Owner (Highest Authority)
+├── Full system access
+├── Can delete any task
+├── Can manage all users
+├── Can view all audit logs
+└── Can move tasks between departments
+
+Admin (Management Level)
+├── Can edit all tasks
+├── Cannot delete tasks (except own)
+├── Can view department audit logs
+└── Can manage department tasks
+
+Viewer (Basic Access)
+├── Can edit personal tasks they created
+├── Can view all tasks (organization-wide)
+├── Cannot delete tasks (except own personal)
+└── Limited audit log access
+```
+
+### User Management
+- **Owners** can edit member roles through the Members section
+- **Admins** can view but not modify user roles
+- **Viewers** have read-only access to member information
+
+---
+
+## 🔑 JWT Authentication Flow
+
+1. **Login**: User provides credentials via `/auth/login`
+2. **Token Generation**: 
+   - Access token (15 minutes)
+   - Refresh token (7 days)
+3. **Request Authorization**: Bearer token in `Authorization` header
+4. **Token Validation**: JWT strategy validates and extracts user info
+5. **Role Checking**: Guards verify permissions for each endpoint
+6. **Automatic Refresh**: Frontend handles token renewal seamlessly
+
+---
+
+## 🛠️ API Documentation
+
+### Authentication Endpoints
+
+#### POST `/auth/login`
+```json
+{
+  "username": "user@example.com",
+  "password": "password123"
+}
+```
+
+#### POST `/auth/register`
+```json
+{
+  "username": "newuser",
+  "email": "newuser@example.com",
+  "password": "password123"
+}
+```
+
+### Task Management Endpoints
+
+#### GET `/tasks`
+**Headers:** `Authorization: Bearer <token>`
+
+#### POST `/tasks`
+```json
+{
+  "title": "New Task",
+  "description": "Task description",
+  "priority": "medium",
+  "status": "to-do",
+  "category": "work",
+  "department": "Engineering"
+}
+```
+
+#### PUT `/tasks/:id`
+#### DELETE `/tasks/:id` (Owner/Admin only)
+#### PATCH `/tasks/:id/assign` (Owner/Admin only)
+#### POST `/tasks/bulk/delete`
+#### POST `/tasks/bulk-update-status`
+
+### Audit Log Endpoints
+#### GET `/audit-log`
+**Headers:** `Authorization: Bearer <token>` (Owner/Admin only)
+
+---
+
+## 🎨 Frontend Features
+
+### Task Management Dashboard
+- **Organization-wide Task View**: All authenticated users can see all tasks
+- **Real-time Updates**: Automatic task refresh and live updates
+- **Advanced Filtering**: By status, priority, category, department
+- **Bulk Operations**: Bulk delete and status updates
+- **Task Overlay**: In-place editing with role-based permissions
+- **Responsive Design**: Mobile-first approach with Tailwind CSS
+
+### Authentication UI
+- **Secure Login/Register**: Clean, accessible forms
+- **JWT Token Management**: Automatic token refresh and storage
+- **Route Protection**: Authenticated routes with role-based access
+- **Session Management**: Automatic logout on inactivity
+
+### State Management (NgRx)
+- **Actions**: Task CRUD, filtering, sorting, user management
+- **Reducers**: Centralized state management
+- **Effects**: API communication and side effects
+- **Selectors**: Efficient data selection and caching
+
+---
+
+## 🔒 Security Features
+
+### Backend Security
+- **JWT Authentication**: Secure token-based auth
+- **Role-Based Access Control**: Granular permission system
+- **Rate Limiting**: API request throttling (100 req/15min)
+- **Input Validation**: Comprehensive data validation
+- **Security Headers**: CSRF, XSS, and clickjacking protection
+- **Audit Logging**: Complete activity tracking
+
+### Frontend Security
+- **CSRF Protection**: X-Requested-With headers
+- **Secure Storage**: Minimal session data in sessionStorage
+- **Session Timeout**: Automatic logout after 30 minutes inactivity
+- **Content Security Policy**: XSS protection
+- **Route Guards**: Protected routes with role checking
+
+---
+
+## 🚀 Production Deployment
+
+### Environment Variables
+```env
+# Production Database
+DATABASE_URL=postgresql://username:password@prod-db:5432/turbovets
+
+# Secure JWT Secret (generate a strong secret)
+JWT_SECRET=your-production-secret-key-here
+
+# CORS Configuration
+CORS_ORIGIN=https://yourdomain.com
+
+# API Configuration
+API_PORT=3000
+NODE_ENV=production
+```
+
+### Build and Deploy
+```bash
+# Build for production
+npm run build:production
+
+# The built files will be in dist/ folder
+# Deploy dist/apps/api/ and dist/apps/dashboard/ to your servers
+```
+
+---
+
+## 🔧 Development
+
+### Adding New Features
+```bash
+# Generate new Angular component
+npx nx g @nx/angular:component feature-name
+
+# Generate new NestJS controller
+npx nx g @nx/nest:controller feature-name
+
+# Generate new library
+npx nx g @nx/angular:lib shared-library
+```
+
+### Code Quality
+- **ESLint**: Configured for both Angular and NestJS
+- **Prettier**: Code formatting
+- **TypeScript**: Strict type checking
+- **Testing**: Jest for unit tests, Cypress for E2E
+
+---
+
+## 📚 Learn More
+
+### NX Workspace
+- [NX Documentation](https://nx.dev)
+- [Angular + NestJS Tutorial](https://nx.dev/getting-started/tutorials/angular-monorepo-tutorial)
+- [NX Console](https://nx.dev/getting-started/editor-setup) - IDE extension
+
+### Technology Stack
+- **Frontend**: Angular 17+, NgRx, Tailwind CSS
+- **Backend**: NestJS, TypeORM, PostgreSQL
+- **Monorepo**: NX workspace management
+- **Authentication**: JWT with refresh tokens
+- **Database**: PostgreSQL with SQLite fallback
+
+### Community
+- [NX Discord](https://go.nx.dev/community)
+- [Angular Discord](https://discord.gg/angular)
+- [NestJS Discord](https://discord.gg/nestjs)
+
+---
+
+**Built with ❤️ using NX • NestJS • Angular • TypeScript • PostgreSQL** 
