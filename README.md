@@ -49,6 +49,8 @@ Create `.env` file:
 ```env
 DATABASE_URL=postgresql://your_username:your_password@localhost:5432/turbovets
 JWT_SECRET=your-secret-key-here
+JWT_EXPIRES_IN=15m
+API_PORT=3000
 NG_APP_API_URL=http://localhost:3000
 ```
 
