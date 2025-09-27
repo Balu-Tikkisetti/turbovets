@@ -119,23 +119,138 @@ npx nx test dashboard   # Test frontend
 Authorization: Bearer <your-jwt-token>
 ```
 
-## Features
+## Setup Instructions
 
-- **Task Management**: Create, edit, assign, and track tasks
-- **User Roles**: Owner, Admin, Viewer with different permissions  
-- **JWT Authentication**: Secure login with token-based auth
-- **Audit Logging**: Track all user actions and changes
-- **Responsive UI**: Works on desktop and mobile
-- **Real-time Updates**: Live task updates across users
+### Backend Setup
+```bash
+# Install dependencies
+npm install
 
-## Future Improvements
+# Start API server
+npx nx serve api
+```
 
-- Multi-factor authentication
-- File attachments for tasks
-- Real-time notifications
-- Mobile app
-- Advanced analytics
-- Integration with external tools
+### Frontend Setup  
+```bash
+# Install dependencies (if not done)
+npm install
+
+# Start dashboard
+npx nx serve dashboard
+```
+
+## Architecture Overview
+
+**Monorepo Structure:**
+- `apps/api/` - NestJS backend with TypeORM
+- `apps/dashboard/` - Angular frontend with NgRx
+- `libs/` - Shared libraries for types and utilities
+- Single codebase, shared dependencies, unified testing
+
+**Key Modules:**
+- Authentication (JWT + refresh tokens)
+- Task Management (CRUD operations)
+- User Management (role-based access)
+- Audit Logging (activity tracking)
+
+## Access Control Design
+
+**Role Hierarchy:**
+- **Owner**: Full system access, can delete any task, manage users
+- **Admin**: Can edit all tasks, assign tasks, view department logs
+- **Viewer**: Can edit only personal tasks, view all tasks
+
+**Data Models:**
+- **User**: id, username, email, password, role, department
+- **Task**: id, title, description, priority, status, category, dueDate, assigneeId, creatorId
+- **AuditLog**: id, userId, action, resource, timestamp
+
+## Sample API Requests/Responses
+
+### Login
+```bash
+POST /auth/login
+{
+  "username": "user@example.com", 
+  "password": "password123"
+}
+
+Response:
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIs...",
+  "user": {
+    "id": "user-123",
+    "username": "john.doe",
+    "role": "admin"
+  }
+}
+```
+
+### Create Task
+```bash
+POST /tasks
+Authorization: Bearer <token>
+{
+  "title": "Fix bug in login",
+  "description": "User cannot login with special characters",
+  "priority": "high",
+  "status": "to-do",
+  "category": "work"
+}
+
+Response:
+{
+  "id": "task-456",
+  "title": "Fix bug in login",
+  "status": "to-do",
+  "priority": "high",
+  "createdAt": "2024-01-15T10:30:00Z"
+}
+```
+
+### Get All Tasks
+```bash
+GET /tasks
+Authorization: Bearer <token>
+
+Response:
+{
+  "tasks": [
+    {
+      "id": "task-456",
+      "title": "Fix bug in login", 
+      "status": "in-progress",
+      "assignee": {
+        "username": "john.doe"
+      }
+    }
+  ]
+}
+```
+
+## Security & Scalability Improvements
+
+**Security:**
+- Add rate limiting per user/IP
+- Implement 2FA for admin accounts
+- Add input validation and sanitization
+- Use HTTPS in production
+- Add session timeout handling
+
+**Scalability:**
+- Add Redis for caching
+- Implement database connection pooling
+- Add load balancing for multiple API instances
+- Use CDN for static assets
+- Add database indexing for better query performance
+- Implement microservices for large scale
+
+**Performance:**
+- Add pagination for large task lists
+- Implement lazy loading for components
+- Add database query optimization
+- Use compression for API responses
 
 ---
 
