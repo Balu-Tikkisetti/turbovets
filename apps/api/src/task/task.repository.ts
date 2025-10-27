@@ -12,6 +12,5 @@ export class TaskRepository extends Repository<Task> {
     super(taskRepository.target, taskRepository.manager, taskRepository.queryRunner);
   }
 
-  // You can add custom methods here for more complex queries if needed
-  // For now, the standard repository methods are sufficient
+
 }

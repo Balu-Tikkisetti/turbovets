@@ -1,9 +1,30 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { RegisterUserDto, LoginUserDto, UserDto } from '@turbovets/data';
+import { decrypt } from 'dotenv';
+import { jwtConfig } from '../config/app.config';
+
+/**
+ * Parse time string (e.g., '1h', '30m', '3600s') to seconds
+ */
+function parseExpiryToSeconds(expiryString: string): number {
+  const match = expiryString.match(/^(\d+)([smhd])$/);
+  if (!match) return 3600; // Default 1 hour
+  
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+  
+  switch (unit) {
+    case 's': return value;
+    case 'm': return value * 60;
+    case 'h': return value * 3600;
+    case 'd': return value * 86400;
+    default: return 3600;
+  }
+}
 
 
 @Injectable()
@@ -24,9 +45,12 @@ export class AuthService {
 
   async login(dto: LoginUserDto) {
     const user = await this.userService.findByUsername(dto.username);
+    if(!user){
+      throw new UnauthorizedException('username does not exist create new account with this username');
+    }
 
-    if (!user || !(await bcrypt.compare(dto.password, user.password))) {
-      throw new UnauthorizedException('Invalid credentials');
+    if (!(await bcrypt.compare(dto.password, user.password))) {
+      throw new UnauthorizedException('password is wrong');
     }
 
     const refreshToken = crypto.randomBytes(64).toString('hex');
@@ -37,7 +61,7 @@ export class AuthService {
 
     const payload = { 
       username: user.username, 
-      sub: user.id, 
+      userId: user.id, 
       role: user.role,
       department: user.department 
     };
@@ -50,19 +74,27 @@ export class AuthService {
     };
 
     return {
-      access_token: this.jwtService.sign(payload, { expiresIn: '15m' }),
+      access_token: this.jwtService.sign(payload, { expiresIn: jwtConfig.expiresIn }),
       refresh_token: refreshToken,
-      expires_in: 15 * 60,
+      expires_in: parseExpiryToSeconds(jwtConfig.expiresIn), 
       user: userDto,
     };
   }
 
   async register(dto: RegisterUserDto) {
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
-    return this.userService.create({
-      ...dto,
-      password: hashedPassword,
-    });
+    try{
+      const hashedPassword = await bcrypt.hash(dto.password, 10);
+      return await this.userService.create({
+        ...dto,
+        password: hashedPassword,
+      });
+    }catch(err){
+      if (err instanceof ConflictException) {
+        throw err;
+      }
+      throw new ConflictException('Registration failed due to duplicate email or username');
+    }
+
   }
 
   async refreshToken(refreshToken: string) {
@@ -92,10 +124,18 @@ export class AuthService {
       department: user.department 
     };
 
+    const userDto: UserDto = {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        department: user.department
+    };
+
     return {
-      access_token: this.jwtService.sign(payload, { expiresIn: '15m' }),
+      access_token: this.jwtService.sign(payload, { expiresIn: jwtConfig.expiresIn }),
       refresh_token: newRefreshToken,
-      expires_in: 15 * 60,
+      expires_in: parseExpiryToSeconds(jwtConfig.expiresIn), 
+      user: userDto,
     };
   }
 

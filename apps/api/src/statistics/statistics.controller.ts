@@ -11,6 +11,7 @@ export class StatisticsController {
   constructor(private readonly statisticsService: StatisticsService) {}
 
   @Get('tasks')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Owner, Role.Admin, Role.Viewer)
   async getTaskStatisticsCount() {
     return this.statisticsService.getTaskStatisticsCount();

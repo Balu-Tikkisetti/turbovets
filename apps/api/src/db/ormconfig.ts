@@ -4,7 +4,7 @@ import { User } from '../entities/user.entity';
 import { Task } from '../entities/task.entity';
 import { AuditLog } from '../entities/audit-log.entity';
 import { Department } from '../entities/department.entity';
-import { databaseConfig } from '../config/database.config';
+import { databaseConfig } from '../config/app.config';
 
 dotenv.config();
 

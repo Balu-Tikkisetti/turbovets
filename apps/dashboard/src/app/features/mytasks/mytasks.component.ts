@@ -5,7 +5,7 @@ import { Store } from '@ngrx/store';
 import { Observable, Subscription } from 'rxjs';
 import { take, map } from 'rxjs/operators';
 import { Task, TaskCategory, TaskPriority, TaskStatus, UserDto, Role } from '@turbovets/data';
-import { CdkDragDrop, CdkDropList, CdkDrag, moveItemInArray } from '@angular/cdk/drag-drop';
+import { CdkDropList, CdkDrag } from '@angular/cdk/drag-drop';
 import { selectCurrentUser } from '../../core/state/auth.reducer';
 import { UserService } from '../../core/services/user.service';
 import { 
@@ -18,11 +18,10 @@ import {
   setTaskFilters, 
   clearTaskFilters,
   setTaskSort,
-  bulkDeleteTasks,
   bulkUpdateTaskStatus,
   TaskFilters,
   TaskSortOptions
-} from '../../core/state/task/task.actions';
+} from '../../core/state/mytask/mytask.actions';
 import { 
   selectFilteredTasks, 
   selectMyTasks,
@@ -33,15 +32,19 @@ import {
   selectTaskStats,
   selectFilteredTaskStats,
   selectOverdueTasks,
-  selectUpcomingTasks
-} from '../../core/state/task/task.selectors';
+  selectUpcomingTasks,
+  selectTasksTotal,
+  selectTasksPage,
+  selectTasksTotalPages,
+  selectTasksHasNext
+} from '../../core/state/mytask/mytask.selectors';
 
 @Component({
   selector: 'app-tasks',
   standalone: true,
   imports: [CommonModule, FormsModule, CdkDropList, CdkDrag],
-  templateUrl: './tasks.component.html',
-  styleUrls: ['./tasks.component.scss']
+  templateUrl: './mytasks.component.html',
+  styleUrls: ['./mytasks.component.scss']
 })
 export class TasksComponent implements OnInit, OnDestroy {
   @Input() taskType: 'work' | 'my' = 'work'; // Default to work tasks
@@ -88,6 +91,19 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
   overdueTasks$: Observable<Task[]> = this.store.select(selectOverdueTasks);
   upcomingTasks$: Observable<Task[]> = this.store.select(selectUpcomingTasks);
+  
+  // Pagination observables
+  totalTasks$: Observable<number> = this.store.select(selectTasksTotal);
+  currentPage$: Observable<number> = this.store.select(selectTasksPage);
+  totalPages$: Observable<number> = this.store.select(selectTasksTotalPages);
+  hasNext$: Observable<boolean> = this.store.select(selectTasksHasNext);
+  
+  // Pagination properties
+  currentPage = 1;
+  totalTasks = 0;
+  totalPages = 0;
+  pageSize = 10;
+  hasNext = false;
   
   // Local filter state
   filters: TaskFilters = {
@@ -140,6 +156,8 @@ export class TasksComponent implements OnInit, OnDestroy {
     priority: TaskPriority.Medium,
     status: TaskStatus.ToDo,
     department: '',
+    startDate: '',     // ← Add this
+    startTime: '',
     dueDate: '',
     dueTime: '',
     recurring: false,
@@ -218,7 +236,7 @@ export class TasksComponent implements OnInit, OnDestroy {
     // Delete: Delete selected tasks
     if (event.key === 'Delete' && this.selectedTasks.size > 0) {
       event.preventDefault();
-      this.bulkDeleteTasks();
+     
     }
 
     // Space: Toggle completed filter
@@ -238,61 +256,28 @@ export class TasksComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Drag and drop functionality
-  onTaskDrop(event: CdkDragDrop<Task[]>) {
-    if (event.previousContainer === event.container) {
-      // Reorder within the same list
-      this.filteredTasks$.pipe(take(1)).subscribe(tasks => {
-        if (tasks) {
-          const reorderedTasks = [...tasks];
-          moveItemInArray(reorderedTasks, event.previousIndex, event.currentIndex);
-          // Update the store with reordered tasks
-          this.store.dispatch(loadTasks()); // Refresh to maintain server state
-        }
-      });
-    } else {
-      // Move between different status lists (Kanban view)
-      this.moveTaskBetweenStatuses(event);
-    }
-  }
 
-  moveTaskBetweenStatuses(event: CdkDragDrop<Task[]>) {
-    this.filteredTasks$.pipe(take(1)).subscribe(tasks => {
-      if (tasks) {
-        const draggedTask = tasks[event.previousIndex];
-        const newStatus = event.container.id as TaskStatus;
-        
-        // Update task status
-        this.store.dispatch(updateTask({ 
-          taskId: draggedTask.id, 
-          updates: { status: newStatus, updatedAt: new Date() }
-        }));
-      }
-    });
-  }
+
+
 
   ngOnInit() {
 
     
     // Subscribe to current user for permission checks
-    this.currentUser$.subscribe(user => {
-      this.currentUser = user;
-
-      
-      // Load assignable users if user is Owner or Admin
-      if (user && (user.role === Role.Owner || user.role === Role.Admin)) {
-        this.loadAssignableUsers();
-      }
-    });
+    this.subscription.add(
+      this.currentUser$.subscribe(user => {
+        this.currentUser = user; // This stores the user locally
+        
+        // Load assignable users if user is Owner or Admin
+        if (user && (user.role === Role.Owner || user.role === Role.Admin)) {
+          this.loadAssignableUsers();
+        }
+      })
+    );
     
-    // Load tasks data based on task type
-    if (this.taskType === 'my') {
-
-      this.store.dispatch(loadMyTasks());
-    } else {
+    // Load my tasks data
+      this.store.dispatch(loadMyTasks({ page: this.currentPage, limit: this.pageSize }));
     
-      this.store.dispatch(loadTasks());
-    }
     
     // Debug: Subscribe to loading state
     this.subscription.add(
@@ -317,13 +302,38 @@ export class TasksComponent implements OnInit, OnDestroy {
       })
     );
     
+    // Subscribe to pagination state
+    this.subscription.add(
+      this.totalTasks$.subscribe(total => {
+        this.totalTasks = total;
+      })
+    );
+    
+    this.subscription.add(
+      this.currentPage$.subscribe(page => {
+        this.currentPage = page;
+      })
+    );
+    
+    this.subscription.add(
+      this.totalPages$.subscribe(totalPages => {
+        this.totalPages = totalPages;
+      })
+    );
+    
+    this.subscription.add(
+      this.hasNext$.subscribe(hasNext => {
+        this.hasNext = hasNext;
+      })
+    );
+    
     // Set up real-time updates
     const interval = setInterval(() => {
 
       if (this.taskType === 'my') {
-        this.store.dispatch(loadMyTasks());
+        this.store.dispatch(loadMyTasks({ page: this.currentPage, limit: this.pageSize }));
       } else {
-        this.store.dispatch(loadTasks());
+        this.store.dispatch(loadTasks({ page: this.currentPage, limit: this.pageSize }));
       }
     }, 60000); // Update every minute
     
@@ -375,9 +385,9 @@ export class TasksComponent implements OnInit, OnDestroy {
 
   retryLoadTasks() {
     if (this.taskType === 'my') {
-      this.store.dispatch(loadMyTasks());
+      this.store.dispatch(loadMyTasks({ page: this.currentPage, limit: this.pageSize }));
     } else {
-      this.store.dispatch(loadTasks());
+      this.store.dispatch(loadTasks({ page: this.currentPage, limit: this.pageSize }));
     }
   }
 
@@ -442,6 +452,8 @@ export class TasksComponent implements OnInit, OnDestroy {
       priority: task.priority as any,
       status: task.status as any,
       department: task.department || '',
+      startDate: task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : '',  
+      startTime: task.startTime || '',
       dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
       dueTime: task.dueTime || '',
       recurring: task.recurring,
@@ -453,8 +465,8 @@ export class TasksComponent implements OnInit, OnDestroy {
   // Enhanced delete with confirmation
   deleteTask(task: Task) {
     const confirmed = confirm(`Are you sure you want to delete "${task.title}"?\n\nThis action cannot be undone.`);
-    if (confirmed) {
-      this.store.dispatch(deleteTask({ taskId: task.id }));
+    if (confirmed && this.currentUser) {
+      this.store.dispatch(deleteTask({ taskId: task.id }) );
     }
   }
 
@@ -482,18 +494,7 @@ export class TasksComponent implements OnInit, OnDestroy {
     this.selectedTasks.clear();
   }
 
-  bulkDeleteTasks() {
-    if (this.selectedTasks.size === 0) return;
-    
-    const confirmed = confirm(`Are you sure you want to delete ${this.selectedTasks.size} selected task(s)?\n\nThis action cannot be undone.`);
-    if (confirmed) {
-      const taskIds = Array.from(this.selectedTasks);
-      this.store.dispatch(bulkDeleteTasks({ taskIds }));
-      
-      // Clear selection after dispatching deletion
-      this.clearSelection();
-    }
-  }
+
 
   bulkUpdateStatus(status: TaskStatus) {
     if (this.selectedTasks.size === 0) return;
@@ -519,6 +520,8 @@ export class TasksComponent implements OnInit, OnDestroy {
       priority: TaskPriority.Medium,
       status: TaskStatus.ToDo,
       department: '',
+      startDate: '',
+      startTime: '',
       dueDate: '',
       dueTime: '',
       recurring: false,
@@ -534,43 +537,62 @@ export class TasksComponent implements OnInit, OnDestroy {
     
     this.isSaving = true;
     
-    const taskData = {
-      ...this.taskForm,
-      dueDate: this.taskForm.dueDate ? new Date(this.taskForm.dueDate) : undefined,
-      creatorId: '', // Will be set by the effect
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
     if (this.selectedTask) {
+      // Prepare update payload with only allowed fields
+      const updates: Partial<Task> = {
+        title: this.taskForm.title,
+        description: this.taskForm.description || undefined,
+        priority: this.taskForm.priority,
+        status: this.taskForm.status,
+        dueDate: this.taskForm.dueDate ? new Date(this.taskForm.dueDate) : undefined,
+        dueTime: this.taskForm.dueTime || undefined,
+      };
+      
+      // Add conditional fields based on category
+      if (this.selectedTask.category === TaskCategory.Personal) {
+        updates.startDate = this.taskForm.startDate ? new Date(this.taskForm.startDate) : undefined;
+        updates.startTime = this.taskForm.startTime || undefined;
+        updates.recurring = this.taskForm.recurring || false;
+      }
+      
+      // Add department for work tasks
+      if (this.selectedTask.category === TaskCategory.Work && this.taskForm.department) {
+        updates.department = this.taskForm.department;
+      }
+      
+      // Add assigneeId if user has permission and field is set
+      if (this.canReassignTask() && this.taskForm.assigneeId) {
+        updates.assigneeId = this.taskForm.assigneeId;
+      }
+      
       // Update existing task
       this.store.dispatch(updateTask({ 
         taskId: this.selectedTask.id, 
-        updates: taskData 
+        updates: updates
       }));
+      
+      // Close modal after a short delay to allow state to update
+      setTimeout(() => {
+        this.isSaving = false;
+        this.closeModals();
+      }, 500);
     } else {
-      // Create new task
+      // Create new task - needs all fields
+      const taskData = {
+        ...this.taskForm,
+        dueDate: this.taskForm.dueDate ? new Date(this.taskForm.dueDate) : undefined,
+        startDate: this.taskForm.startDate ? new Date(this.taskForm.startDate) : undefined,
+        dueTime: this.taskForm.dueTime || undefined,
+        startTime: this.taskForm.startTime || undefined,
+      } as Task;
+      
       this.store.dispatch(createTask({ task: taskData }));
+      
+      setTimeout(() => {
+        this.isSaving = false;
+        this.closeModals();
+      }, 500);
     }
-    
-    // Handle success/error with timeout
-    const timeout = setTimeout(() => {
-      this.isSaving = false;
-    }, 5000); // 5 second timeout
-    
-    this.subscription.add(
-      this.store.select(selectTasksError).pipe(take(1)).subscribe(error => {
-        clearTimeout(timeout);
-        if (!error) {
-          this.closeModals();
-          this.isSaving = false;
-        } else {
-          console.error('Error saving task:', error);
-          alert(`Failed to save task: ${error}`);
-          this.isSaving = false;
-        }
-      })
-    );
   }
 
 
@@ -772,48 +794,27 @@ export class TasksComponent implements OnInit, OnDestroy {
       default: return 'circle';
     }
   }
-
-  // Permission checking methods
-  canEditTask(task: Task): boolean {
-    if (!this.currentUser) return false;
-    
-    const userRole = this.currentUser.role as Role;
-    const taskCategory = task.category as TaskCategory;
-    const isTaskCreator = task.creatorId === this.currentUser.id;
-    
-    switch (userRole) {
-      case Role.Owner:
-        return true; // Owner can edit all tasks
-      case Role.Admin:
-        return true; // Admin can edit all tasks
-      case Role.Viewer:
-        // Viewer can only edit personal tasks they created
-        return taskCategory === TaskCategory.Personal && isTaskCreator;
-      default:
-        return false;
-    }
+  canEditTaskWithUser(task: Task, user: UserDto | null): boolean {
+    if (!user) return false;
+    const userRole = user.role as Role;
+    const isCreator = task.creatorId === user.id;
+  
+    // Owners/Admins can edit all
+    if (userRole === Role.Owner || userRole === Role.Admin) return true;
+  
+    // Viewers: only personal tasks they created
+    return task.category === TaskCategory.Personal && isCreator;
   }
-
-  canDeleteTask(task: Task): boolean {
-    if (!this.currentUser) return false;
-    
-    const userRole = this.currentUser.role as Role;
-    const taskCategory = task.category as TaskCategory;
-    const isTaskCreator = task.creatorId === this.currentUser.id;
-    
-    switch (userRole) {
-      case Role.Owner:
-        return true; // Only Owner can delete any task
-      case Role.Admin:
-        return false; // Admin cannot delete tasks
-      case Role.Viewer:
-        // Viewer can only delete personal tasks they created
-        return taskCategory === TaskCategory.Personal && isTaskCreator;
-      default:
-        return false;
-    }
+  
+  canDeleteTaskWithUser(task: Task, user: UserDto | null): boolean {
+    if (!user) return false;
+    const userRole = user.role as Role;
+    const isCreator = task.creatorId === user.id;
+  
+    if (userRole === Role.Owner) return true;
+    return task.category === TaskCategory.Personal && isCreator;
   }
-
+  
   canReassignTask(): boolean {
     if (!this.currentUser) return false;
     
@@ -937,26 +938,32 @@ export class TasksComponent implements OnInit, OnDestroy {
 
   // Edit task method
   editTask(task: Task) {
-    if (!this.canEditTask(task)) {
-      console.warn('User does not have permission to edit this task');
-      return;
-    }
-    
-    this.selectedTask = task;
-    this.taskForm = {
-      title: task.title,
-      description: task.description || '',
-      category: task.category as any,
-      priority: task.priority as any,
-      status: task.status as any,
-      department: task.department || '',
-      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
-      dueTime: task.dueTime || '',
-      recurring: task.recurring || false,
-      assigneeId: task.assigneeId || ''
-    };
-    this.showEditModal = true;
+    this.currentUser$.pipe(take(1)).subscribe(user => {
+      if (!this.canEditTaskWithUser(task, user)) {
+        console.warn('User does not have permission to edit this task');
+        return;
+      }
+  
+      this.selectedTask = task;
+      this.taskForm = {
+        title: task.title,
+        description: task.description || '',
+        category: task.category as any,
+        priority: task.priority as any,
+        status: task.status as any,
+        department: task.department || '',
+        startDate: task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : '',  
+        startTime: task.startTime || '',
+        dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
+        dueTime: task.dueTime || '',
+        recurring: task.recurring || false,
+        assigneeId: task.assigneeId || ''
+      };
+  
+      this.showEditModal = true;
+    });
   }
+  
 
   // Assign task method
   assignTask(task: Task, assigneeId: string) {
@@ -989,5 +996,89 @@ export class TasksComponent implements OnInit, OnDestroy {
         this.loadingAssignableUsers = false;
       }
     });
+  }
+
+  // Pagination methods
+  goToPage(page: number | string) {
+    const pageNumber = typeof page === 'string' ? parseInt(page, 10) : page;
+    if (pageNumber >= 1 && pageNumber <= this.totalPages && pageNumber !== this.currentPage) {
+      this.currentPage = pageNumber;
+      this.loadTasksForCurrentPage();
+    }
+  }
+
+  goToNextPage() {
+    if (this.currentPage < this.totalPages) {
+      this.goToPage(this.currentPage + 1);
+    }
+  }
+
+  goToPreviousPage() {
+    if (this.currentPage > 1) {
+      this.goToPage(this.currentPage - 1);
+    }
+  }
+
+  onPageSizeChange() {
+    this.currentPage = 1; // Reset to first page when changing page size
+    this.loadTasksForCurrentPage();
+  }
+
+  loadTasksForCurrentPage() {
+    if (this.taskType === 'my') {
+      this.store.dispatch(loadMyTasks({ page: this.currentPage, limit: this.pageSize }));
+    } else {
+      this.store.dispatch(loadTasks({ page: this.currentPage, limit: this.pageSize }));
+    }
+  }
+
+  getVisiblePages(): (number | string)[] {
+    const pages: (number | string)[] = [];
+    const maxVisible = 5;
+    
+    if (this.totalPages <= maxVisible) {
+      // Show all pages if total is less than max visible
+      for (let i = 1; i <= this.totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Show first page
+      pages.push(1);
+      
+      if (this.currentPage > 3) {
+        pages.push('...');
+      }
+      
+      // Show pages around current page
+      const start = Math.max(2, this.currentPage - 1);
+      const end = Math.min(this.totalPages - 1, this.currentPage + 1);
+      
+      for (let i = start; i <= end; i++) {
+        if (i !== 1 && i !== this.totalPages) {
+          pages.push(i);
+        }
+      }
+      
+      if (this.currentPage < this.totalPages - 2) {
+        pages.push('...');
+      }
+      
+      // Show last page
+      if (this.totalPages > 1) {
+        pages.push(this.totalPages);
+      }
+    }
+    
+    return pages;
+  }
+
+  getEndItemNumber(): number {
+    return Math.min(this.currentPage * this.pageSize, this.totalTasks);
+  }
+
+  // Drag and drop handler
+  onTaskDrop(event: any) {
+    // Handle drag and drop if needed
+    console.log('Task dropped:', event);
   }
 }

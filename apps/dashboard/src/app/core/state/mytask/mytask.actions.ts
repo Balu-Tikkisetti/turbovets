@@ -21,10 +21,21 @@ export interface TaskSortOptions {
 }
 
 // Load Tasks Actions
-export const loadTasks = createAction('[Tasks] Load Tasks');
+export const loadTasks = createAction(
+  '[Tasks] Load Tasks',
+  props<{ page?: number; limit?: number }>()
+);
+
+
 export const loadTasksSuccess = createAction(
   '[Tasks] Load Tasks Success',
-  props<{ tasks: Task[] }>()
+  props<{ 
+    tasks: Task[],
+    total: number,
+    page: number,
+    totalPages: number,
+    hasNext: boolean
+  }>()
 );
 export const loadTasksFailure = createAction(
   '[Tasks] Load Tasks Failure',
@@ -32,10 +43,19 @@ export const loadTasksFailure = createAction(
 );
 
 // Load My Tasks Actions
-export const loadMyTasks = createAction('[Tasks] Load My Tasks');
+export const loadMyTasks = createAction(
+  '[Tasks] Load My Tasks',
+  props<{ page?: number; limit?: number }>()
+);
 export const loadMyTasksSuccess = createAction(
   '[Tasks] Load My Tasks Success',
-  props<{ tasks: Task[] }>()
+  props<{  
+    tasks: Task[],
+    total: number,
+    page: number,
+    totalPages: number,
+    hasNext: boolean
+  }>()
 );
 export const loadMyTasksFailure = createAction(
   '[Tasks] Load My Tasks Failure',
@@ -46,7 +66,7 @@ export const loadMyTasksFailure = createAction(
 export const loadTaskStatistics = createAction('[Tasks] Load Task Statistics');
 export const loadTaskStatisticsSuccess = createAction(
   '[Tasks] Load Task Statistics Success',
-  props<{ statistics: any }>()
+  props<{ statistics: unknown }>()
 );
 export const loadTaskStatisticsFailure = createAction(
   '[Tasks] Load Task Statistics Failure',
@@ -84,7 +104,7 @@ export const updateTaskFailure = createAction(
 // Delete Task Actions
 export const deleteTask = createAction(
   '[Tasks] Delete Task',
-  props<{ taskId: string }>()
+  props<{ taskId: string}>()
 );
 export const deleteTaskSuccess = createAction(
   '[Tasks] Delete Task Success',
@@ -121,18 +141,7 @@ export const bulkUpdateTasksFailure = createAction(
   props<{ error: string }>()
 );
 
-export const bulkDeleteTasks = createAction(
-  '[Tasks] Bulk Delete Tasks',
-  props<{ taskIds: string[] }>()
-);
-export const bulkDeleteTasksSuccess = createAction(
-  '[Tasks] Bulk Delete Tasks Success',
-  props<{ taskIds: string[] }>()
-);
-export const bulkDeleteTasksFailure = createAction(
-  '[Tasks] Bulk Delete Tasks Failure',
-  props<{ error: string }>()
-);
+
 
 // Bulk Status Update Actions
 export const bulkUpdateTaskStatus = createAction(

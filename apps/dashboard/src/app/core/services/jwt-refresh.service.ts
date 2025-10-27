@@ -4,13 +4,20 @@ import { Observable, BehaviorSubject, fromEvent, merge, EMPTY } from 'rxjs';
 import { catchError, switchMap, tap, filter, map } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { logout } from '../state/auth.reducer';
+import { logout, updateCurrentUser } from '../state/auth.reducer';
+import { UserProfile } from '@turbovets/data';
 import { environment } from '../../../environments/environment.local';
 
 export interface TokenResponse {
   access_token: string;
   refresh_token: string;
   expires_in: number;
+  user?: {
+    id: string;
+    username: string;
+    role: string;
+    department?: string;
+  };
 }
 
 export interface LoginResponse extends TokenResponse {
@@ -181,6 +188,12 @@ export class JwtRefreshService {
       tap((response: TokenResponse) => {
         this.setTokens(response);
         this.refreshTokenSubject.next(response.access_token);
+        
+        // Update user data if provided in refresh response
+        if (response.user) {
+          this.updateUserSession(response.user);
+        }
+        
         this.isRefreshing = false;
         this.scheduleTokenRefresh();
       }),
@@ -328,5 +341,30 @@ export class JwtRefreshService {
     // If token is invalid and user is inactive, handle timeout
     this.handleSessionTimeout();
     return EMPTY;
+  }
+
+  /**
+   * Update user session data from refresh token response
+   */
+  private updateUserSession(userData: { id: string; username: string; role: string; department?: string }): void {
+    // Create UserProfile from the provided data
+    const userProfile: UserProfile = {
+      id: userData.id,
+      username: userData.username,
+      role: userData.role,
+      department: userData.department
+    };
+    
+    // Update the NgRx store with new user data
+    this.store.dispatch(updateCurrentUser(userProfile));
+    
+    // Also update sessionStorage for persistence
+    const sessionData = {
+      id: userData.id,
+      username: userData.username,
+      role: userData.role,
+      department: userData.department
+    };
+    sessionStorage.setItem('userSession', JSON.stringify(sessionData));
   }
 }

@@ -3,7 +3,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } 
 import { CommonModule } from '@angular/common';
 import { Store } from '@ngrx/store';
 import { selectCurrentUserOrSession } from '../../core/state/auth.reducer';
-import { createTask } from '../../core/state/task/task.actions';
+import { createTask } from '../../core/state/mytask/mytask.actions';
 import { Subscription } from 'rxjs';
 import { UserDto, Role, UserProfile } from '@turbovets/data';
 import { 
@@ -17,8 +17,15 @@ import {
   selectSelectedDepartment as selectSelectedDepartmentState,
   selectDepartmentLoading as selectDepartmentLoadingState
 } from '../../core/state/department/department.selectors';
-import { DepartmentService, UserPermissions } from '@turbovets/auth';
+import { DepartmentService } from '../../core/services/department.service';
 import { take } from 'rxjs/operators';
+
+export interface UserPermissions {
+  canEdit: boolean;
+  canDelete: boolean;
+  canAssignTasks: boolean;
+  canChangeDepartment: boolean;
+}
 
 interface Priority {
   value: string;
@@ -104,7 +111,7 @@ export class CreateTaskModalComponent implements OnInit, OnDestroy, OnChanges {
       this.store.select(selectCurrentUserOrSession).subscribe(user => {
         this.currentUser = user;
         if (user) {
-          this.userPermissions = this.departmentService.getUserPermissions(user.role as Role, user.department);
+          this.userPermissions = this.getUserPermissions(user.role as Role);
         }
       })
     );
@@ -194,6 +201,39 @@ export class CreateTaskModalComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  private getUserPermissions(role: Role): UserPermissions {
+    switch (role) {
+      case Role.Owner:
+        return {
+          canEdit: true,
+          canDelete: true,
+          canAssignTasks: true,
+          canChangeDepartment: true
+        };
+      case Role.Admin:
+        return {
+          canEdit: true,
+          canDelete: false,
+          canAssignTasks: true,
+          canChangeDepartment: false
+        };
+      case Role.Viewer:
+        return {
+          canEdit: false,
+          canDelete: false,
+          canAssignTasks: false,
+          canChangeDepartment: false
+        };
+      default:
+        return {
+          canEdit: false,
+          canDelete: false,
+          canAssignTasks: false,
+          canChangeDepartment: false
+        };
+    }
+  }
+
   filterAssignees() {
     if (!this.currentUser) {
       this.availableAssignees = [];
@@ -226,6 +266,12 @@ export class CreateTaskModalComponent implements OnInit, OnDestroy, OnChanges {
 
   ngOnChanges() {
     if (this.visible && this.currentUser) {
+      // Set correct tab for Viewer role
+      if (this.currentUser.role === Role.Viewer) {
+        this.activeTab = 'personal';
+        this.taskForm.patchValue({ category: 'personal' });
+      }
+      
       // Ensure data is loaded when modal becomes visible
       this.loadModalData();
     }

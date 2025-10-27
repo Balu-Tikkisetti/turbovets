@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -27,15 +27,36 @@ export class UserService {
   }
 
   async findByUsername(username: string): Promise<User | null> {
-    return this.userRepo.findOne({ where: { username } });
+    try{
+      return await this.userRepo.findOne({ where: { username } });
+    }
+    catch(err){
+      console.error('Error finding user by username:', err);
+      throw err;
+    }
   }
 
   async create(dto: RegisterUserDto): Promise<User> {
-    const user = this.userRepo.create({
-      ...dto,
-      role: Role.Viewer,
-    });
-    return this.userRepo.save(user);
+    try{
+      const user = this.userRepo.create({
+        ...dto,
+        role: Role.Viewer,
+      });
+      return await this.userRepo.save(user);
+    }catch(err){
+      console.error('Error creating user:', err);
+      if (err.code === '23505' || err.code === 'ER_DUP_ENTRY') {
+        if (err.detail?.includes('email') || err.message?.includes('email')) {
+          throw new ConflictException('Email already exists');
+        }
+        if (err.detail?.includes('username') || err.message?.includes('username')) {
+          throw new ConflictException('Username already exists');
+        }  
+        throw new ConflictException('User with this email or username already exists');
+      }
+      throw err;
+    }
+   
   }
 
 

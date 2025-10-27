@@ -9,12 +9,12 @@ import {
   createTask, 
   updateTask, 
   deleteTask
-} from '../../core/state/task/task.actions';
+} from '../../core/state/mytask/mytask.actions';
 import { 
   selectFilteredTasks, 
   selectTasksLoading, 
   selectTasksError
-} from '../../core/state/task/task.selectors';
+} from '../../core/state/mytask/mytask.selectors';
 
 interface CalendarDay {
   date: Date;
@@ -106,7 +106,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
     
     // Load tasks data
-    this.store.dispatch(loadTasks());
+    this.store.dispatch(loadTasks({ page: 1, limit: 25 }));
     
     // Subscribe to tasks and update calendar
     this.subscription.add(

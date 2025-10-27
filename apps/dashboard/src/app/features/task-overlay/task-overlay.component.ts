@@ -3,11 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
 import { Observable, Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
 import { Task, TaskCategory, TaskPriority, TaskStatus, Role, UserDto } from '@turbovets/data';
 import { TaskService } from '../../core/services/task.service';
 import { UserService } from '../../core/services/user.service';
 import { selectCurrentUser } from '../../core/state/auth.reducer';
-import { updateTask, deleteTask } from '../../core/state/task/task.actions';
+import { updateTask, deleteTask } from '../../core/state/mytask/mytask.actions';
+import { Actions } from '@ngrx/effects';
 
 @Component({
   selector: 'app-task-overlay',
@@ -28,6 +30,7 @@ export class TaskOverlayComponent implements OnInit, OnDestroy, OnChanges {
   isSaving = false;
   isDeleting = false;
   error: string | null = null;
+  private isClosing = false; // Track if overlay is being closed
 
   // Current user and permissions
   currentUser$: Observable<UserDto | null>;
@@ -60,6 +63,7 @@ export class TaskOverlayComponent implements OnInit, OnDestroy, OnChanges {
   private store = inject(Store);
   private taskService = inject(TaskService);
   private userService = inject(UserService);
+  private actions$ = inject(Actions);
 
   constructor() {
     this.currentUser$ = this.store.select(selectCurrentUser);
@@ -83,6 +87,21 @@ export class TaskOverlayComponent implements OnInit, OnDestroy, OnChanges {
       })
     );
 
+    // Listen for task deletion - close overlay if current task is deleted
+    this.subscriptions.add(
+      this.actions$.pipe(
+        filter(action => action.type === '[Task] Delete Task Success'),
+        filter(() => this.taskId !== null)
+      ).subscribe((action: { type: string; taskId: string }) => {
+        // Check if the deleted task matches the current task in the overlay
+        if (action.taskId && this.taskId && action.taskId === this.taskId) {
+          console.log('Current task was deleted, closing overlay');
+          this.isClosing = true; // Mark that we're closing
+          this.closeOverlay.emit();
+        }
+      })
+    );
+
     // Load task when visible
     if (this.isVisible && this.taskId) {
       this.loadTask();
@@ -101,13 +120,32 @@ export class TaskOverlayComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnChanges() {
-    if (this.isVisible && this.taskId) {
+    // Prevent loading if we're closing the overlay
+    if (this.isClosing) {
+      return;
+    }
+    
+    // Prevent loading if overlay is not visible or if there's no taskId
+    if (!this.isVisible || !this.taskId) {
+      if (!this.isVisible) {
+        // Reset state when overlay is closed
+        this.task = null;
+        this.error = null;
+        this.isEditing = false;
+        this.isClosing = false; // Reset closing flag
+      }
+      return;
+    }
+
+    // Only load if we don't already have this task loaded
+    // This prevents unnecessary reloads when taskId hasn't actually changed
+    if (!this.task || this.task.id !== this.taskId) {
       this.loadTask();
     }
   }
 
   loadTask() {
-    if (!this.taskId) return;
+    if (!this.taskId || this.isClosing) return;
 
     this.isLoading = true;
     this.error = null;
@@ -119,9 +157,15 @@ export class TaskOverlayComponent implements OnInit, OnDestroy, OnChanges {
         this.isLoading = false;
       },
       error: (error) => {
-        this.error = 'Failed to load task details';
         this.isLoading = false;
-        console.error('Error loading task:', error);
+        // If task not found (404), close the overlay
+        if (error.status === 404 || error.error?.statusCode === 404) {
+          console.log('Task not found, closing overlay');
+          this.closeOverlay.emit();
+        } else {
+          this.error = 'Failed to load task details';
+          console.error('Error loading task:', error);
+        }
       }
     });
   }
@@ -218,30 +262,17 @@ export class TaskOverlayComponent implements OnInit, OnDestroy, OnChanges {
     const confirmed = confirm(`Are you sure you want to delete the task "${this.task.title}"? This action cannot be undone.`);
     if (!confirmed) return;
 
-    this.isDeleting = true;
-    this.error = null;
-
-    this.taskService.deleteTask(this.task.id).subscribe({
-      next: () => {
-        this.isDeleting = false;
-        
-        // Dispatch action to remove from store
-        if (this.task) {
-          this.store.dispatch(deleteTask({ taskId: this.task.id }));
-        }
-        
-        // Close overlay
-        this.closeOverlay.emit();
-      },
-      error: (error) => {
-        this.error = 'Failed to delete task';
-        this.isDeleting = false;
-        console.error('Error deleting task:', error);
-      }
-    });
+    this.isClosing = true; // Mark that we're closing to prevent reloads
+    
+    // Dispatch the delete action - the effect will handle the API call
+    this.store.dispatch(deleteTask({ taskId: this.task.id }));
+    
+    // Close overlay immediately (the effect will handle the API call and store update)
+    this.closeOverlay.emit();
   }
 
   close() {
+    this.isClosing = true;
     this.closeOverlay.emit();
   }
 

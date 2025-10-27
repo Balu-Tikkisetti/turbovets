@@ -29,20 +29,18 @@ import {
   clearTaskFilters,
   setTaskSort,
   bulkUpdateTasks,
-  bulkDeleteTasks,
-  bulkDeleteTasksSuccess,
-  bulkDeleteTasksFailure,
+
   bulkUpdateTaskStatus,
   bulkUpdateTaskStatusSuccess,
   bulkUpdateTaskStatusFailure,
   TaskFilters,
   TaskSortOptions
-} from './task.actions';
+} from './mytask.actions';
 
 export interface TaskState {
   tasks: Task[];
   myTasks: Task[];
-  statistics: any;
+  statistics: unknown;
   filteredTasks: Task[];
   filters: TaskFilters;
   sort: TaskSortOptions;
@@ -51,6 +49,11 @@ export interface TaskState {
   statisticsLoading: boolean;
   error: string | null;
   lastUpdated: number | null;
+  // Pagination properties
+  total: number;
+  page: number;
+  totalPages: number;
+  hasNext: boolean;
 }
 
 export const initialState: TaskState = {
@@ -79,7 +82,12 @@ export const initialState: TaskState = {
   myTasksLoading: false,
   statisticsLoading: false,
   error: null,
-  lastUpdated: null
+  lastUpdated: null,
+  // Pagination initial state
+  total: 0,
+  page: 1,
+  totalPages: 0,
+  hasNext: false
 };
 
 export const taskReducer = createReducer(
@@ -92,17 +100,18 @@ export const taskReducer = createReducer(
     error: null
   })),
   
-  on(loadTasksSuccess, (state, { tasks }) => {
-
+  on(loadTasksSuccess, (state, { tasks, total, page, totalPages, hasNext }) => {
     const sortedTasks = sortTasks(tasks, state.sort);
     const filteredTasks = applyFilters(sortedTasks, state.filters);
-    
-
     
     return {
       ...state,
       tasks: sortedTasks,
       filteredTasks,
+      total,
+      page,
+      totalPages,
+      hasNext,
       loading: false,
       error: null,
       lastUpdated: Date.now()
@@ -123,18 +132,27 @@ export const taskReducer = createReducer(
   })),
   
   on(createTaskSuccess, (state, { task }) => {
-    const updatedTasks = [...state.tasks, task];
+    let updatedTasks = state.tasks;
+    const updatedMyTasks = [...state.myTasks, task];
+
+    if (task.category === TaskCategory.Work) {
+      updatedTasks = [...state.tasks, task];
+    }
+  
     const sortedTasks = sortTasks(updatedTasks, state.sort);
     const filteredTasks = applyFilters(sortedTasks, state.filters);
-    
+  
     return {
       ...state,
       tasks: sortedTasks,
+      myTasks: updatedMyTasks,
       filteredTasks,
       loading: false,
       error: null
     };
   }),
+  
+  
   
   on(createTaskFailure, (state, { error }) => ({
     ...state,
@@ -150,13 +168,19 @@ export const taskReducer = createReducer(
   })),
   
   on(updateTaskSuccess, (state, { task }) => {
+    // Update work tasks array (used by Dashboard, Calendar)
     const updatedTasks = state.tasks.map(t => t.id === task.id ? task : t);
+    
+    // Update my tasks array (used by MyTasks component)
+    const updatedMyTasks = state.myTasks.map(t => t.id === task.id ? task : t);
+    
     const sortedTasks = sortTasks(updatedTasks, state.sort);
     const filteredTasks = applyFilters(sortedTasks, state.filters);
     
     return {
       ...state,
       tasks: sortedTasks,
+      myTasks: updatedMyTasks,
       filteredTasks,
       loading: false,
       error: null
@@ -177,12 +201,14 @@ export const taskReducer = createReducer(
   })),
   
   on(deleteTaskSuccess, (state, { taskId }) => {
-    const updatedTasks = state.tasks.filter(t => t.id !== taskId);
+    const updatedTasks = state.tasks.filter(t => t.id.toString() !== taskId.toString());
+    const updatedMyTasks = state.myTasks.filter(t => t.id.toString() !== taskId.toString());
     const filteredTasks = applyFilters(updatedTasks, state.filters);
-    
+  
     return {
       ...state,
       tasks: updatedTasks,
+      myTasks: updatedMyTasks,   
       filteredTasks,
       loading: false,
       error: null
@@ -247,31 +273,11 @@ export const taskReducer = createReducer(
     };
   }),
   
-  // Bulk Delete Tasks
-  on(bulkDeleteTasks, (state) => ({
-    ...state,
-    loading: true,
-    error: null
-  })),
+
   
-  on(bulkDeleteTasksSuccess, (state, { taskIds }) => {
-    const updatedTasks = state.tasks.filter(task => !taskIds.includes(task.id));
-    const filteredTasks = applyFilters(updatedTasks, state.filters);
-    
-    return {
-      ...state,
-      tasks: updatedTasks,
-      filteredTasks,
-      loading: false,
-      error: null
-    };
-  }),
+
   
-  on(bulkDeleteTasksFailure, (state, { error }) => ({
-    ...state,
-    loading: false,
-    error
-  })),
+
   
   // Bulk Update Task Status
   on(bulkUpdateTaskStatus, (state) => ({
@@ -346,13 +352,19 @@ export const taskReducer = createReducer(
     error: null
   })),
   on(moveTaskToDepartmentSuccess, (state, { task }) => {
+    // Update work tasks array (used by Dashboard, Calendar)
     const updatedTasks = state.tasks.map(t => t.id === task.id ? task : t);
+    
+    // Update my tasks array (used by MyTasks component)
+    const updatedMyTasks = state.myTasks.map(t => t.id === task.id ? task : t);
+    
     const sortedTasks = sortTasks(updatedTasks, state.sort);
     const filteredTasks = applyFilters(sortedTasks, state.filters);
     
     return {
       ...state,
       tasks: sortedTasks,
+      myTasks: updatedMyTasks,
       filteredTasks,
       loading: false,
       error: null
@@ -371,13 +383,19 @@ export const taskReducer = createReducer(
     error: null
   })),
   on(assignTaskSuccess, (state, { task }) => {
+    // Update work tasks array (used by Dashboard, Calendar)
     const updatedTasks = state.tasks.map(t => t.id === task.id ? task : t);
+    
+    // Update my tasks array (used by MyTasks component)
+    const updatedMyTasks = state.myTasks.map(t => t.id === task.id ? task : t);
+    
     const sortedTasks = sortTasks(updatedTasks, state.sort);
     const filteredTasks = applyFilters(sortedTasks, state.filters);
     
     return {
       ...state,
       tasks: sortedTasks,
+      myTasks: updatedMyTasks,
       filteredTasks,
       loading: false,
       error: null

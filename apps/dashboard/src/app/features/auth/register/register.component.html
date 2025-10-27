@@ -123,7 +123,7 @@
               @if (password.errors?.['required']) {
                 <span>Password is required</span>
               }
-              @if (password.valid && !isPasswordStrong()) {
+              @if (password.invalid ||!isPasswordStrong()) {
                 <span>{{ getPasswordStrengthError() }}</span>
               }
             </div>

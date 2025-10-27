@@ -1,4 +1,4 @@
-import { Role } from '@turbovets/data';
+import { Role } from '../enums/role.enum';
 
 export interface RBACConfig {
   allowedRoles: Role[];

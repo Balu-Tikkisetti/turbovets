@@ -151,7 +151,7 @@
             }
             @if (currentUser?.role === Role.Owner) {
               <button 
-                (click)="bulkDeleteTasks()"
+              
                 class="px-3 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center gap-2"
                 title="Delete selected"
               >
@@ -229,6 +229,7 @@
               <div class="col-span-2">Priority</div>
               <div class="col-span-2">Status</div>
               <div class="col-span-2">Due Date</div>
+              <div class="col-span-1">Actions</div>
              
             </div>
           </div>
@@ -314,44 +315,29 @@
                     <span class="text-sm text-gray-400 dark:text-gray-500">No due date</span>
                   }
                 </div>
-                
-                <!-- Actions -->
-                <div class="col-span-1 flex items-center gap-1">
-            @if (canEditTask(task)) {
-              <button 
-                (click)="editTask(task); $event.stopPropagation()"
-                class="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                title="Edit task"
-              >
-                <i data-lucide="edit" class="w-4 h-4"></i>
-              </button>
-            }
-            @if (canReassignTask()) {
-              <button 
-                (click)="editTask(task); $event.stopPropagation()"
-                class="p-2 text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                title="Assign task"
-              >
-                <i data-lucide="user-plus" class="w-4 h-4"></i>
-              </button>
-            }
-            @if (canDeleteTask(task)) {
-              <button 
-                (click)="deleteTask(task); $event.stopPropagation()"
-                class="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                title="Delete task"
-              >
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-              </button>
-            }
+               <!-- Actions -->
+               <div class="col-span-1 flex flex-col items-start gap-2">
+                @if (canEditTaskWithUser(task, currentUser)) {
                   <button 
-                    (click)="toggleTaskStatus(task); $event.stopPropagation()"
-                    class="p-2 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
-                    [title]="task.status === TaskStatus.Completed ? 'Mark as to-do' : 'Mark as completed'"
+                    (click)="editTask(task); $event.stopPropagation()"
+                    class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors w-full"
+                    title="Edit task"
                   >
-                    <i [attr.data-lucide]="task.status === TaskStatus.Completed ? 'square' : 'check'" class="w-4 h-4"></i>
+                    Edit
                   </button>
-                </div>
+                }
+              
+                @if (canDeleteTaskWithUser(task, currentUser))  {
+                  <button 
+                    (click)="deleteTask(task); $event.stopPropagation()"
+                    class="px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors w-full"
+                    title="Delete task"
+                  >
+                    Delete
+                  </button>
+                }
+              </div>
+              
               </div>
             }
           </div>
@@ -413,6 +399,77 @@
         </div>
       }
     }
+
+    <!-- Pagination -->
+    @if ((loading$ | async) === false && (error$ | async) === null && (filteredTasks$ | async) && (filteredTasks$ | async)!.length > 0) {
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mt-6">
+        <div class="flex items-center justify-between">
+          <!-- Page Info -->
+          <div class="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+            <span>
+              Showing {{ ((currentPage - 1) * pageSize) + 1 }} to {{ getEndItemNumber() }} of {{ totalTasks }} tasks
+            </span>
+            <span class="text-gray-400">|</span>
+            <span>Page {{ currentPage }} of {{ totalPages }}</span>
+          </div>
+
+          <!-- Pagination Controls -->
+          <div class="flex items-center gap-2">
+            <!-- Previous Button -->
+            <button 
+              (click)="goToPreviousPage()"
+              [disabled]="currentPage <= 1"
+              class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600 dark:hover:text-white"
+            >
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+
+            <!-- Page Numbers -->
+            <div class="flex items-center gap-1">
+              @for (page of getVisiblePages(); track page) {
+                @if (page === '...') {
+                  <span class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">...</span>
+                } @else {
+                  <button 
+                    (click)="goToPage(page)"
+                    [class]="page === currentPage 
+                      ? 'px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-lg hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600' 
+                      : 'px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600 dark:hover:text-white'"
+                  >
+                    {{ page }}
+                  </button>
+                }
+              }
+            </div>
+
+            <!-- Next Button -->
+            <button 
+              (click)="goToNextPage()"
+              [disabled]="currentPage >= totalPages"
+              class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600 dark:hover:text-white"
+            >
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Page Size Selector -->
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-600 dark:text-gray-400">Show:</span>
+            <select 
+              [(ngModel)]="pageSize"
+              (change)="onPageSizeChange()"
+              class="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            <span class="text-sm text-gray-600 dark:text-gray-400">per page</span>
+          </div>
+        </div>
+      </div>
+    }
   </div>
 </div>
 
@@ -470,19 +527,39 @@
             </div>
             
             <!-- Description -->
-            <div>
+            <div class="lg:col-span-2">
               <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Description
+                {{ taskForm.category === 'work' ? 'Description' : 'Notes' }}
               </label>
               <textarea 
                 id="description"
                 [(ngModel)]="taskForm.description" 
                 name="description"
                 rows="4"
-                placeholder="Enter task description..."
+                [placeholder]="taskForm.category === 'work' ? 'Provide a detailed description of the task...' : 'Add any additional notes...'"
                 class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               ></textarea>
             </div>
+            
+            <!-- Department (Work Tasks Only) -->
+            @if (taskForm.category === 'work') {
+              <div>
+                <label for="department" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Department *
+                </label>
+                <select 
+                  id="department"
+                  [(ngModel)]="taskForm.department" 
+                  name="department"
+                  class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="" disabled>Select Department</option>
+                  @for (dept of departments; track dept) {
+                    <option [value]="dept">{{ dept }}</option>
+                  }
+                </select>
+              </div>
+            }
             
             <!-- Priority and Status -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -521,40 +598,101 @@
               </div>
             </div>
             
-            <!-- Category and Due Date -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Start Date/Time (Personal Tasks Only) -->
+            @if (taskForm.category === 'personal') {
               <div>
-                <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Category
-                </label>
-                <select 
-                  id="category"
-                  [(ngModel)]="taskForm.category" 
-                  name="category"
-                  class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="work">Work</option>
-                  <option value="personal">Personal</option>
-                  <option value="shopping">Shopping</option>
-                  <option value="health">Health</option>
-                  <option value="education">Education</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              
-              <div>
-                <label for="dueDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Due Date
+                <label for="startDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Start Date *
                 </label>
                 <input 
                   type="date" 
-                  id="dueDate"
-                  [(ngModel)]="taskForm.dueDate" 
-                  name="dueDate"
+                  id="startDate"
+                  [(ngModel)]="taskForm.startDate" 
+                  name="startDate"
                   class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
               </div>
+            }
+            
+            @if (taskForm.category === 'personal') {
+              <div>
+                <label for="startTime" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Start Time *
+                </label>
+                <input 
+                  type="time" 
+                  id="startTime"
+                  [(ngModel)]="taskForm.startTime" 
+                  name="startTime"
+                  class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+              </div>
+            }
+            
+            <!-- Category (Read-Only During Edit) -->
+            <div>
+              <label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Category
+              </label>
+              <select 
+                id="category"
+                [(ngModel)]="taskForm.category" 
+                name="category"
+                [disabled]="true"
+                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 opacity-60 cursor-not-allowed"
+              >
+                <option value="work">Work</option>
+                <option value="personal">Personal</option>
+              </select>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Category cannot be changed</p>
             </div>
+            
+            <!-- Due Date -->
+            <div>
+              <label for="dueDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {{ taskForm.category === 'personal' ? 'End Date' : 'Due Date' }} *
+              </label>
+              <input 
+                type="date" 
+                id="dueDate"
+                [(ngModel)]="taskForm.dueDate" 
+                name="dueDate"
+                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+            </div>
+            
+            <!-- Due Time / End Time -->
+            <div>
+              <label for="dueTime" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {{ taskForm.category === 'personal' ? 'End Time' : 'Due Time' }} *
+              </label>
+              <input 
+                type="time" 
+                id="dueTime"
+                [(ngModel)]="taskForm.dueTime" 
+                name="dueTime"
+                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+            </div>
+            
+            <!-- Recurring (Personal Tasks Only) -->
+            @if (taskForm.category === 'personal') {
+              <div class="flex items-center space-x-2">
+                <input
+                  id="recurring"
+                  type="checkbox"
+                  [(ngModel)]="taskForm.recurring"
+                  name="recurring"
+                  class="h-4 w-4 text-blue-600 rounded"
+                />
+                <label
+                  for="recurring"
+                  class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
+                  Daily recurring task
+                </label>
+              </div>
+            }
 
             <!-- Assignee Field (only for Owners and Admins) -->
             @if (currentUser && (currentUser.role === 'Owner' || currentUser.role === 'Admin')) {

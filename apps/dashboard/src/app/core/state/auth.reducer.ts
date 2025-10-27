@@ -12,8 +12,15 @@ const getInitialState = (): AuthState => {
     const sessionString = sessionStorage.getItem('userSession');
     if (sessionString) {
       const session: UserSession = JSON.parse(sessionString);
+      // Create user profile from session data
+      const user: UserProfile = {
+        id: session.id,
+        username: session.username,
+        role: session.role,
+        department: session.department
+      };
       return { 
-        user: null, // Full user data not stored in session storage
+        user, 
         session, 
         isLoggedIn: true 
       };

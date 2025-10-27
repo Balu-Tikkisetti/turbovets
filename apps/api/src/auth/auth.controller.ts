@@ -1,7 +1,6 @@
 import { Body, Controller, Post, Request, UseGuards, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterUserDto,LoginUserDto } from '@turbovets/data';
-import { LocalAuthGuard } from './local-auth.guard';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Controller('auth')
@@ -13,12 +12,13 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
-  @UseGuards(LocalAuthGuard)
+ 
   @Post('login')
   async login(@Body() dto:LoginUserDto) {
     return this.authService.login(dto);
   }
-
+  
+  @UseGuards(JwtAuthGuard)
   @Post('refresh')
   async refreshToken(@Body() body: { refresh_token: string }) {
     return this.authService.refreshToken(body.refresh_token);

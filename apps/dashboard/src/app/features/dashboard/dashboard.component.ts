@@ -1,7 +1,8 @@
-import { Component, AfterViewInit, OnDestroy, inject, ComponentRef, Type, ChangeDetectorRef, ViewChild } from '@angular/core';
+import { Component, AfterViewInit, OnDestroy, inject, ComponentRef, Type, ChangeDetectorRef, ViewChild, HostListener } from '@angular/core';
 import { AsyncPipe, CommonModule, NgComponentOutlet } from '@angular/common';
 import { Store } from '@ngrx/store';
-import { Observable, Subject } from 'rxjs';
+import { Observable, Subject, Subscription } from 'rxjs';
+import { Actions, ofType } from '@ngrx/effects';
 import { selectCurrentUserOrSession, AuthState } from '../../core/state/auth.reducer';
 import { UserDto, Role, Task, TaskCategory } from '@turbovets/data';
 import { CreateTaskModalComponent } from '../create-task-modal/create-task-modal.component';
@@ -10,8 +11,9 @@ import { TaskOverlayComponent } from '../task-overlay/task-overlay.component';
 import { MembersComponent } from '../members/members.component';
 import { DepartmentsComponent } from '../departments/departments.component';
 import { ThemeToggleComponent } from '../../shared/components/theme-toggle/theme-toggle.component';
-import { loadTasks, loadTaskStatistics } from '../../core/state/task/task.actions';
-import { selectFilteredTasks, selectTasksLoading, selectTasksError, selectTaskStatistics } from '../../core/state/task/task.selectors';
+import { loadTasks, loadTaskStatistics } from '../../core/state/mytask/mytask.actions';
+import { deleteTaskSuccess } from '../../core/state/mytask/mytask.actions';
+import { selectFilteredTasks, selectTasksLoading, selectTasksError, selectTaskStatistics, selectTasksTotal, selectTasksPage, selectTasksTotalPages, selectTasksHasNext } from '../../core/state/mytask/mytask.selectors';
 import { StatisticsChartComponent } from '../statistics/statistics-chart.component';
 
 declare const lucide: {
@@ -34,6 +36,12 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
   selectedTaskId: string | null = null;
   activeNavItem = 'dashboard';
   isSidebarOpen = false;
+
+  currentPage = 1;
+pageSize = 25;
+totalPages = 0;
+totalTasks = 0;
+hasNext = false;
   
   // Lazy loaded components
   TasksComponent: Type<unknown> | null = null;
@@ -48,6 +56,7 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
   currentUser$: Observable<UserDto | null>;
   currentUser: UserDto | null = null; // For permission checks
   Role = Role; // Make Role enum available in template
+  Math = Math; // Make Math available in template
   
   // Task observables for dashboard display
   tasks$!: Observable<Task[]>;
@@ -55,15 +64,23 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
   tasksError$!: Observable<string | null>;
   taskStatistics$!: Observable<unknown>;
   
+  // Pagination observables
+  tasksTotal$!: Observable<number>;
+  tasksPage$!: Observable<number>;
+  tasksTotalPages$!: Observable<number>;
+  tasksHasNext$!: Observable<boolean>;
+  
   
   // Lazy loading states for specific sections
   isTasksDataReady = false;
   
   // Memory leak prevention
   private destroy$ = new Subject<void>();
+  private subscriptions = new Subscription();
   
   private store: Store<AuthState> = inject(Store);
   private cdr: ChangeDetectorRef = inject(ChangeDetectorRef);
+  private actions$ = inject(Actions);
 
   constructor() {
     this.currentUser$ = this.store.select(selectCurrentUserOrSession);
@@ -71,16 +88,61 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     this.tasksLoading$ = this.store.select(selectTasksLoading);
     this.tasksError$ = this.store.select(selectTasksError);
     this.taskStatistics$ = this.store.select(selectTaskStatistics);
+    
+    // Pagination observables
+    this.tasksTotal$ = this.store.select(selectTasksTotal);
+    this.tasksPage$ = this.store.select(selectTasksPage);
+    this.tasksTotalPages$ = this.store.select(selectTasksTotalPages);
+    this.tasksHasNext$ = this.store.select(selectTasksHasNext);
   }
 
   ngAfterViewInit(): void {
     // Subscribe to current user for permission checks
-    this.currentUser$.subscribe(user => {
-      this.currentUser = user;
-    });
+    this.subscriptions.add(
+      this.currentUser$.subscribe(user => {
+        this.currentUser = user;
+      })
+    );
+    
+    // Listen for task deletion - close overlay if currently open task is deleted
+    this.subscriptions.add(
+      this.actions$.pipe(
+        ofType(deleteTaskSuccess)
+      ).subscribe((action) => {
+        if (action.taskId === this.selectedTaskId && this.isTaskOverlayVisible) {
+          console.log('Closing overlay for deleted task:', action.taskId);
+          this.onTaskOverlayClose();
+        }
+      })
+    );
+    
+    // Subscribe to pagination state updates
+    this.subscriptions.add(
+      this.tasksTotal$.subscribe(total => {
+        this.totalTasks = total;
+      })
+    );
+    
+    this.subscriptions.add(
+      this.tasksPage$.subscribe(page => {
+        this.currentPage = page;
+      })
+    );
+    
+    this.subscriptions.add(
+      this.tasksTotalPages$.subscribe(totalPages => {
+        this.totalPages = totalPages;
+      })
+    );
+    
+    this.subscriptions.add(
+      this.tasksHasNext$.subscribe(hasNext => {
+        this.hasNext = hasNext;
+      })
+    );
     
     // Load all tasks for organization-wide view
-    this.store.dispatch(loadTasks());
+    this.store.dispatch(loadTasks({ page: 1, limit: 25 }));
     
     // Load task statistics
     this.store.dispatch(loadTaskStatistics());
@@ -94,6 +156,41 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     
     // Handle window resize to close sidebar on desktop
     window.addEventListener('resize', this.handleResize.bind(this));
+  }
+
+  // Pagination methods
+  loadTasksPage(page: number) {
+    this.currentPage = page;
+    this.store.dispatch(loadTasks({ page: this.currentPage, limit: this.pageSize }));
+  }
+
+  goToNextPage() {
+    if (this.hasNext) {
+      this.loadTasksPage(this.currentPage + 1);
+    }
+  }
+
+  goToPreviousPage() {
+    if (this.currentPage > 1) {
+      this.loadTasksPage(this.currentPage - 1);
+    }
+  }
+
+  goToPage(page: number) {
+    this.loadTasksPage(page);
+  }
+
+  getPageNumbers(): number[] {
+    const pages: number[] = [];
+    const maxVisiblePages = 5;
+    const startPage = Math.max(1, this.currentPage - Math.floor(maxVisiblePages / 2));
+    const endPage = Math.min(this.totalPages, startPage + maxVisiblePages - 1);
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    
+    return pages;
   }
 
 
@@ -152,7 +249,7 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     
     this.loadingTasks = true;
     try {
-      const module = await import('../tasks/tasks.component');
+      const module = await import('../mytasks/mytasks.component');
       this.TasksComponent = module.TasksComponent;
     } catch {
       // Handle component loading error silently
@@ -205,8 +302,13 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     const userRole = this.currentUser.role as Role;
     
     // Owners and Admins can access all tasks
-    if (userRole === Role.Owner || userRole === Role.Admin) {
+    if (userRole === Role.Owner) {
       return true;
+    }
+    if(userRole===Role.Admin){
+      if(task?.department===this.currentUser.department){
+        return true;
+      }
     }
     
     // Viewers can access personal tasks they created
@@ -249,15 +351,7 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     return userRole === Role.Owner || userRole === Role.Admin;
   }
 
-  // Check if user can access full tasks management in dashboard (Admins only, not Owners)
-  canAccessFullTasksManagementForAdmins(): boolean {
-    if (!this.currentUser) return false;
-    
-    const userRole = this.currentUser.role as Role;
-    
-    // Only Admins can access full tasks management in dashboard (Owners see charts and overview only)
-    return userRole === Role.Admin;
-  }
+
 
   // Task editing methods
   onTaskClick(task: Task): void {
@@ -325,6 +419,7 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     // Clean up all subscriptions to prevent memory leaks
+    this.subscriptions.unsubscribe();
     this.destroy$.next();
     this.destroy$.complete();
     
@@ -340,4 +435,14 @@ export class DashboardComponent implements AfterViewInit, OnDestroy {
     this.CalendarComponent = null;
     this.AnalyticsComponent = null;
   }
+
+
+  @HostListener('document:keydown', ['$event'])
+handleKeyboardShortcuts(event: KeyboardEvent) {
+  // Shift+N: Create new task
+  if (event.shiftKey && event.key === 'N') {
+    event.preventDefault();
+    this.onNewTaskClick();
+  }
+}
 }

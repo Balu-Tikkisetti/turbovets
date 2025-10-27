@@ -2,6 +2,9 @@ import {
     Injectable,
     ForbiddenException,
     NotFoundException,
+    ConflictException,
+    InternalServerErrorException,
+    BadRequestException,
   } from '@nestjs/common';
   import { InjectRepository } from '@nestjs/typeorm';
   import { Repository, In } from 'typeorm';
@@ -45,105 +48,117 @@ import {
       return await this.taskRepository.save(task);
     }
   
-  async findAllWorkTasks(userId: string, userRole: Role, userDepartment?: string): Promise<Task[]> {
-    const query = this.taskRepository.createQueryBuilder('task')
-      .leftJoinAndSelect('task.assignee', 'assignee')
-      .leftJoinAndSelect('task.creator', 'creator')
-      .orderBy('task.createdAt', 'DESC');
-
-    if (userRole === Role.Owner) {
-      // Owner can see all work tasks across all departments 
-      query.where('task.category = :workCategory ', {
-        workCategory: TaskCategory.Work,
-        userId
-      });
-    } else if (userRole === Role.Admin) {
-      // Admin can see work tasks in their department
-      if (userDepartment) {
-        query.where(
-          '(task.category = :workCategory AND task.department = :department)',
-          {
-            workCategory: TaskCategory.Work,
-         
-            department: userDepartment,
-            userId
-          }
-        );
-      } 
-    } else if (userRole === Role.Viewer) {
-      // Viewer can see work tasks in their department
-      if (userDepartment) {
-        query.where(
-          '(task.category = :workCategory AND task.department = :department )',
-          {
-            workCategory: TaskCategory.Work,
-            department: userDepartment,
-            userId
-          }
-        );
-      } 
-    } else {
-      // Unknown role - return empty array
-      query.where('1 = 0');
+    async findAllWorkTasksOrganization(
+      page: number, 
+      limit: number
+    ): Promise<{ tasks: Task[], total: number, page: number, totalPages: number, hasNext: boolean }> {
+      try {
+        const query = this.taskRepository.createQueryBuilder('task')
+          .leftJoinAndSelect('task.assignee', 'assignee')
+          .leftJoinAndSelect('task.creator', 'creator')
+          .where('task.category = :workCategory', { workCategory: TaskCategory.Work })
+          .orderBy('task.createdAt', 'DESC');
+    
+        const [tasks, total] = await query
+          .skip((page - 1) * limit)
+          .take(limit)
+          .getManyAndCount();
+    
+        const totalPages = Math.ceil(total / limit);
+        const hasNext = page < totalPages;
+    
+        return {
+          tasks,
+          total,
+          page,
+          totalPages,
+          hasNext
+        };
+      } catch (error) {
+        console.error('Error fetching work tasks:', error);
+        throw new InternalServerErrorException(`Failed to fetch work tasks in organization: ${error.message}`);
+      }
     }
 
-    return await query.getMany();
-  }
-
-  async findMyTasks(userId: string, userRole: Role, userDepartment?: string): Promise<Task[]> {
-    const query = this.taskRepository.createQueryBuilder('task')
-      .leftJoinAndSelect('task.assignee', 'assignee')
-      .leftJoinAndSelect('task.creator', 'creator')
-      .orderBy('task.createdAt', 'DESC');
-
-    if (userRole === Role.Owner) {
-      // Owner can see all work tasks they created/assigned + their own personal tasks
-      query.where(
-        '(task.category = :workCategory AND task.creatorId = :userId) OR (task.category = :personalCategory AND task.creatorId = :userId)',
-        {
-          workCategory: TaskCategory.Work,
-          personalCategory: TaskCategory.Personal,
-          userId
-        }
-      );
-    } else if (userRole === Role.Admin) {
-      // Admin can see work tasks in their department they assigned + their own personal tasks
-      if (userDepartment) {
+    async findMyTasks(
+      userId: string, 
+      userRole: Role, 
+      userDepartment: string | undefined,
+      page: number,
+      limit: number
+    ): Promise<{ tasks: Task[], total: number, page: number, limit: number, totalPages: number }> {
+      const query = this.taskRepository.createQueryBuilder('task')
+        .leftJoinAndSelect('task.assignee', 'assignee')
+        .leftJoinAndSelect('task.creator', 'creator')
+        .orderBy('task.createdAt', 'DESC');
+    
+      if (userRole === Role.Owner) {
+        // Owner can see all work tasks they created/assigned + their own personal tasks
         query.where(
-          '(task.category = :workCategory AND task.department = :department AND task.assigneeId = :userId) OR (task.category = :personalCategory AND task.creatorId = :userId)',
+          '(task.category = :workCategory AND task.creatorId = :userId) OR (task.category = :personalCategory AND task.creatorId = :userId)',
           {
             workCategory: TaskCategory.Work,
             personalCategory: TaskCategory.Personal,
-            department: userDepartment,
             userId
           }
         );
-      } 
-    } else if (userRole === Role.Viewer) {
-      // Viewer can see tasks they created or are assigned to
-      if (userDepartment) {
-        query.where(
-          '((task.assigneeId = :userId AND task.category = :workCategory AND task.department = :department) OR (task.creatorId = :userId))',
-          { 
-            userId,
-            workCategory: TaskCategory.Work,
-            department: userDepartment
-          }
-        );
+      } else if (userRole === Role.Admin) {
+        // Admin can see work tasks in their department they assigned + their own personal tasks
+        if (userDepartment) {
+          query.where(
+            '(task.category = :workCategory AND task.department = :department AND task.assigneeId = :userId) OR (task.category = :personalCategory AND task.creatorId = :userId)',
+            {
+              workCategory: TaskCategory.Work,
+              personalCategory: TaskCategory.Personal,
+              department: userDepartment,
+              userId
+            }
+          );
+        } 
+      } else if (userRole === Role.Viewer) {
+        // Viewer can see tasks they created or are assigned to
+        if (userDepartment) {
+          query.where(
+            '((task.assigneeId = :userId AND task.category = :workCategory AND task.department = :department) OR (task.creatorId = :userId))',
+            { 
+              userId,
+              workCategory: TaskCategory.Work,
+              department: userDepartment
+            }
+          );
+        } else {
+          // Viewer without department can only see tasks they created
+          query.where(
+            '(task.creatorId = :userId)',
+            { userId }
+          );
+        }
       } else {
-        // Viewer without department can only see tasks they created
-        query.where(
-          '(task.creatorId = :userId)',
-          { userId }
-        );
+        // Unknown role - return empty array
+        query.where('1 = 0');
       }
-    } else {
-      // Unknown role - return empty array
-      query.where('1 = 0');
+    
+      // Get total count
+      const total = await query.getCount();
+    
+      // Apply pagination
+      const skip = (page - 1) * limit;
+      query.skip(skip).take(limit);
+    
+      // Get paginated results
+      const tasks = await query.getMany();
+    
+      return {
+        tasks,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      };
     }
 
-    return await query.getMany();
-  }
+
+    
   
     async findTaskById(id: string, userId: string, userRole: Role): Promise<Task | undefined> {
       const task = await this.taskRepository.findOne({ where: { id } });
@@ -181,125 +196,101 @@ import {
       return task;
     }
   
-    async updateTask(id: string, updateTaskDto: UpdateTaskDto, userId: string, userRole: Role): Promise<Task> {
-      const task = await this.taskRepository.findOne({ where: { id } });
-      if (!task) {
-        throw new NotFoundException(`Task with ID ${id} not found.`);
+    async updateTask(
+      id: string, 
+      updateTaskDto: UpdateTaskDto, 
+      userId: string, 
+      userRole: Role, 
+      userDepartment: string
+    ): Promise<Task> {
+      try {
+        const task = await this.taskRepository.findOne({ where: { id } });
+        
+        if (!task) {
+          throw new NotFoundException(`Task with ID ${id} not found.`);
+        }
+    
+        let canEdit = false;
+        
+        if (userRole === Role.Owner) {
+          // Owner can edit all work tasks + their own personal tasks
+          canEdit = task.category === TaskCategory.Work || 
+                    (task.category === TaskCategory.Personal && task.creatorId === userId);
+        } else if (userRole === Role.Admin) {
+          // Admin can edit all work tasks in their department + their own personal tasks
+          canEdit = (task.category === TaskCategory.Work && task.department === userDepartment) || 
+                    (task.category === TaskCategory.Personal && task.creatorId === userId);
+        } else if (userRole === Role.Viewer) {
+          // Viewer can only edit their own personal tasks
+          canEdit = task.category === TaskCategory.Personal && task.creatorId === userId;
+        }
+        
+        if (!canEdit) {
+          throw new ForbiddenException('You do not have permission to update this task.');
+        }
+        
+        const updatedTask = this.taskRepository.merge(task, updateTaskDto);
+        return await this.taskRepository.save(updatedTask);
+        
+      } catch (error) {
+        // Re-throw NestJS exceptions as-is
+        if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+          throw error;
+        }
+        
+        // Handle database errors
+        if (error.code === '23505') { 
+          throw new ConflictException('Task with this unique constraint already exists.');
+        }
+        
+        if (error.code === '23503') { 
+          throw new BadRequestException('Referenced resource does not exist.');
+        }
+        
+        // Log unexpected errors
+        console.error('Error updating task:', error);
+        throw new InternalServerErrorException('Failed to update task. Please try again later.');
       }
-  
-      let canEdit = false;
-      
-      if (userRole === Role.Owner) {
-        // Owner can edit all work tasks + their own personal tasks
-        canEdit = task.category === TaskCategory.Work || (task.category === TaskCategory.Personal && task.creatorId === userId);
-      } else if (userRole === Role.Admin) {
-        // Admin can edit all work tasks + their own personal tasks
-        canEdit = task.category === TaskCategory.Work || (task.category === TaskCategory.Personal && task.creatorId === userId);
-      } else if (userRole === Role.Viewer) {
-        // Viewer can only edit their own personal tasks
-        canEdit = task.category === TaskCategory.Personal && task.creatorId === userId;
-      }
-      
-      if (!canEdit) {
-        throw new ForbiddenException('You do not have permission to update this task.');
-      }
-      
-      const updatedTask = this.taskRepository.merge(task, updateTaskDto);
-      return this.taskRepository.save(updatedTask);
     }
   
     async deleteTask(id: string, userId: string, userRole: Role): Promise<void> {
       const task = await this.taskRepository.findOne({ where: { id } });
       if (!task) {
-        throw new NotFoundException(`Task with ID ${id} not found.`);
+        throw new NotFoundException(`Task not found.`);
       }
-
+    
       let canDelete = false;
-      
+    
       if (userRole === Role.Owner) {
-        // Owner can delete all work tasks + their own personal tasks
-        canDelete = task.category === TaskCategory.Work || (task.category === TaskCategory.Personal && task.creatorId === userId);
+        canDelete =
+          task.category === TaskCategory.Work ||
+          (task.category === TaskCategory.Personal && task.creatorId === userId);
       } else if (userRole === Role.Admin) {
-        // Admin can delete their created work tasks + their own personal tasks
-        canDelete = (task.category === TaskCategory.Work && task.creatorId === userId) || (task.category === TaskCategory.Personal && task.creatorId === userId);
+        canDelete =
+          (task.category === TaskCategory.Work && task.creatorId === userId) ||
+          (task.category === TaskCategory.Personal && task.creatorId === userId);
       } else if (userRole === Role.Viewer) {
-        // Viewer can only delete their own personal tasks
-        canDelete = task.category === TaskCategory.Personal && task.creatorId === userId;
+        canDelete =
+          task.category === TaskCategory.Personal && task.creatorId === userId;
       }
-      
+    
       if (!canDelete) {
-        throw new ForbiddenException('You do not have permission to delete this task.');
+        throw new ForbiddenException(
+          `You do not have permission to delete this task.`
+        );
       }
-      
-      await this.taskRepository.remove(task);
+    
+      try {
+        await this.taskRepository.remove(task);
+      } catch (error) {
+        throw new ConflictException(
+          `Task could not be deleted. It may be linked to other records. ${error.message}`
+        );
+      }
     }
+    
 
-    async bulkDeleteTasks(taskIds: string[], userId: string, userRole: Role): Promise<void> {
-      // Find all tasks to be deleted
-      const tasks = await this.taskRepository.findBy({ id: In(taskIds) });
-      
-      if (tasks.length !== taskIds.length) {
-        throw new NotFoundException('One or more tasks not found.');
-      }
-
-      // Check permissions for all tasks
-      for (const task of tasks) {
-        let canDelete = false;
-        
-        if (userRole === Role.Owner) {
-          // Owner can delete all work tasks + their own personal tasks
-          canDelete = task.category === TaskCategory.Work || (task.category === TaskCategory.Personal && task.creatorId === userId);
-        } else if (userRole === Role.Admin) {
-          // Admin can delete all work tasks + their own personal tasks
-          canDelete = task.category === TaskCategory.Work || (task.category === TaskCategory.Personal && task.creatorId === userId);
-        } else if (userRole === Role.Viewer) {
-          // Viewer can only delete their own personal tasks
-          canDelete = task.category === TaskCategory.Personal && task.creatorId === userId;
-        }
-        
-        if (!canDelete) {
-          throw new ForbiddenException(`You do not have permission to delete task "${task.title}".`);
-        }
-      }
-
-      // Delete all tasks
-      await this.taskRepository.remove(tasks);
-    }
-
-    async bulkUpdateTaskStatus(taskIds: string[], status: TaskStatus, userId: string, userRole: Role): Promise<Task[]> {
-      const tasks = await this.taskRepository.findBy({ id: In(taskIds) });
-      
-      if (tasks.length !== taskIds.length) {
-        throw new NotFoundException('One or more tasks not found.');
-      }
-
-      for (const task of tasks) {
-        let canUpdate = false;
-        
-        if (userRole === Role.Owner) {
-          // Owner can update all work tasks + their own personal tasks
-          canUpdate = task.category === TaskCategory.Work || (task.category === TaskCategory.Personal && task.creatorId === userId);
-        } else if (userRole === Role.Admin) {
-          // Admin can update all work tasks + their own personal tasks
-          canUpdate = task.category === TaskCategory.Work || (task.category === TaskCategory.Personal && task.creatorId === userId);
-        } else if (userRole === Role.Viewer) {
-          // Viewer can only update their own personal tasks
-          canUpdate = task.category === TaskCategory.Personal && task.creatorId === userId;
-        }
-        
-        if (!canUpdate) {
-          throw new ForbiddenException(`You do not have permission to update task "${task.title}".`);
-        }
-      }
-
-      const updatedTasks = tasks.map(task => {
-        task.status = status;
-        task.updatedAt = new Date();
-        return task;
-      });
-
-      return this.taskRepository.save(updatedTasks);
-    }
+    
 
     async moveTaskToDepartment(taskId: string, newDepartment: string, userId: string, userRole: Role): Promise<Task> {
       if (userRole !== Role.Owner) {

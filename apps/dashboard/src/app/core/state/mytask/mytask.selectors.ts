@@ -1,5 +1,5 @@
 import { createFeatureSelector, createSelector } from '@ngrx/store';
-import { TaskState } from './task.reducer';
+import { TaskState } from './mytask.reducer';
 import { Task, TaskCategory, TaskPriority, TaskStatus } from '@turbovets/data';
 
 export const selectTaskState = createFeatureSelector<TaskState>('tasks');
@@ -237,7 +237,7 @@ export const selectFilteredTaskStats = createSelector(
 // Recent tasks
 export const selectRecentTasks = createSelector(
   selectAllTasks,
-  (tasks: Task[], count: number = 5) => {
+  (tasks: Task[], count = 5) => {
     return tasks
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, count);
@@ -247,7 +247,7 @@ export const selectRecentTasks = createSelector(
 // Upcoming tasks
 export const selectUpcomingTasks = createSelector(
   selectAllTasks,
-  (tasks: Task[], days: number = 7) => {
+  (tasks: Task[], days = 7) => {
     const now = new Date();
     const futureDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
     
@@ -283,4 +283,25 @@ export const selectOverdueTasks = createSelector(
         return aDate - bDate;
       });
   }
+);
+
+// Pagination selectors
+export const selectTasksTotal = createSelector(
+  selectTaskState,
+  (state: TaskState) => state.total
+);
+
+export const selectTasksPage = createSelector(
+  selectTaskState,
+  (state: TaskState) => state.page
+);
+
+export const selectTasksTotalPages = createSelector(
+  selectTaskState,
+  (state: TaskState) => state.totalPages
+);
+
+export const selectTasksHasNext = createSelector(
+  selectTaskState,
+  (state: TaskState) => state.hasNext
 );

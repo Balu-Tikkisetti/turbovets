@@ -36,17 +36,28 @@ export class TaskService {
     );
   }
 
-  // Get all work tasks based on user role and department
-  getWorkTasks(): Observable<TaskInterface[]> {
- 
+  // Get all work tasks in the organization
+  getWorkTasks(page = 1, limit = 25): Observable<{
+    tasks: TaskInterface[],
+    total: number,
+    page: number,
+    totalPages: number,
+    hasNext: boolean
+  }> {
     const headers = this.getHeaders();
-
     
-    return this.http.get<TaskInterface[]>(this.apiUrl, {
+    return this.http.get<{
+      tasks: TaskInterface[],
+      total: number,
+      page: number,
+      totalPages: number,
+      hasNext: boolean
+    }>(`${this.apiUrl}/all_work_tasks_in_organization?page=${page}&limit=${limit}`, {
       headers: headers
     }).pipe(
-      tap(tasks => {
-        console.log('TaskService: Received work tasks from backend:');
+      tap(response => {
+        console.log('TaskService: Received work tasks from backend:', response.tasks);
+        console.log('TaskService: Page', response.page, 'of', response.totalPages);
       }),
       catchError(error => {
         console.error('TaskService: Error fetching work tasks:', error);
@@ -56,16 +67,26 @@ export class TaskService {
   }
 
   // Get tasks where user is creator or assignee
-  getMyTasks(): Observable<TaskInterface[]> {
-  
+  getMyTasks(page = 1, limit = 10): Observable<{
+    tasks: TaskInterface[],
+    total: number,
+    page: number,
+    totalPages: number,
+    hasNext: boolean
+  }> {
     const headers = this.getHeaders();
     
-    return this.http.get<TaskInterface[]>(`${this.apiUrl}/my-tasks`, {
+    return this.http.get<{
+      tasks: TaskInterface[],
+      total: number,
+      page: number,
+      totalPages: number,
+      hasNext: boolean
+    }>(`${this.apiUrl}/my-tasks?page=${page}&limit=${limit}`, {
       headers: headers
     }).pipe(
-      tap(tasks => {
-        console.log('TaskService: Received my tasks from backend:', tasks);
-        console.log('TaskService: Number of my tasks:', tasks?.length || 0);
+      tap(response => {
+        console.log('TaskService: Received my tasks from backend:', response);
       }),
       catchError(error => {
         console.error('TaskService: Error fetching my tasks:', error);
@@ -96,29 +117,17 @@ export class TaskService {
     return this.http.delete<void>(`${this.apiUrl}/${id}`, {
       headers: this.getHeaders()
     }).pipe(
-      catchError(this.handleError)
+      catchError((error) => {
+        console.error('TaskService: Error deleting task:', error);
+        return throwError(() => new Error(error?.error?.message || 'Error deleting task'));
+      })
     );
   }
+  
 
-  // Bulk operations
-  bulkDeleteTasks(taskIds: string[]): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/bulk/delete`, { taskIds }, {
-      headers: this.getHeaders()
-    }).pipe(
-      catchError(this.handleError)
-    );
-  }
 
-  bulkUpdateTaskStatus(taskIds: string[], status: string): Observable<TaskInterface[]> {
-    return this.http.post<TaskInterface[]>(`${this.apiUrl}/bulk-update-status`, { 
-      taskIds, 
-      status 
-    }, {
-      headers: this.getHeaders()
-    }).pipe(
-      catchError(this.handleError)
-    );
-  }
+
+
 
 
 
@@ -130,13 +139,6 @@ export class TaskService {
     );
   }
 
-  bulkUpdateTasks(taskIds: string[], updates: Partial<TaskInterface>): Observable<TaskInterface[]> {
-    return this.http.patch<TaskInterface[]>(`${this.apiUrl}/bulk-update`, { taskIds, updates }, {
-      headers: this.getHeaders()
-    }).pipe(
-      catchError(this.handleError)
-    );
-  }
 
   private handleError(error: HttpErrorResponse): Observable<never> {
     let errorMessage = 'An unknown error occurred!';

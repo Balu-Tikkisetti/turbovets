@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ThemeService } from '../../../core/services/theme.service';
 
@@ -47,7 +47,7 @@ import { ThemeService } from '../../../core/services/theme.service';
     </button>
   `,
   styles: [`
-    /* ===== ENTERPRISE THEME TOGGLE - WHITE GRADIENT THEME ===== */
+  
     .theme-toggle-enterprise {
       position: relative;
       display: inline-flex;
@@ -218,7 +218,17 @@ import { ThemeService } from '../../../core/services/theme.service';
 export class ThemeToggleComponent {
   protected readonly themeService = inject(ThemeService);
 
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboardShortcuts(event: KeyboardEvent) {
+    // Shift+N: Create new task
+    if (event.shiftKey && event.key === 'D') {
+      event.preventDefault();
+      this.toggleTheme();
+    }
+  }
+
   toggleTheme(): void {
     this.themeService.toggleTheme();
   }
+
 }

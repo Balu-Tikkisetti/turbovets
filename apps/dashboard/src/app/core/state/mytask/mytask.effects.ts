@@ -23,22 +23,13 @@ import {
   deleteTask,
   deleteTaskSuccess,
   deleteTaskFailure,
-  moveTaskToDepartment,
-  moveTaskToDepartmentSuccess,
-  moveTaskToDepartmentFailure,
+
   assignTask,
   assignTaskSuccess,
   assignTaskFailure,
-  bulkUpdateTasks,
-  bulkUpdateTasksSuccess,
-  bulkUpdateTasksFailure,
-  bulkDeleteTasks,
-  bulkDeleteTasksSuccess,
-  bulkDeleteTasksFailure,
-  bulkUpdateTaskStatus,
-  bulkUpdateTaskStatusSuccess,
-  bulkUpdateTaskStatusFailure
-} from './task.actions';
+
+
+} from './mytask.actions';
 import { CreateTaskDto, UpdateTaskDto } from '@turbovets/data';
 
 @Injectable()
@@ -47,22 +38,63 @@ export class TaskEffects {
   private taskService = inject(TaskService);
   private store = inject(Store);
   private statisticService = inject(StatisticsService);
-  // Load Work Tasks Effect
+  // Load organization level all Work Tasks Effect
   loadTasks$ = createEffect(() =>
     this.actions$.pipe(
       ofType(loadTasks),
       tap(),
-      switchMap(() => {
+      switchMap((action) => {
+        const page = action.page || 1;
+        const limit = action.limit || 25;
         
-        return this.taskService.getWorkTasks().pipe(
+        return this.taskService.getWorkTasks(page, limit).pipe(
           tap(),
-          map(tasks => {
-            return loadTasksSuccess({ tasks });
+          map(response => {
+            return loadTasksSuccess({ 
+              tasks: response.tasks,
+              total: response.total,
+              page: response.page,
+              totalPages: response.totalPages,
+              hasNext: response.hasNext
+            });
           }),
           catchError(error => {
             console.error('TaskEffects: Failed to load work tasks:', error);
             // Don't let the error break the app - return empty tasks
-            return of(loadTasksSuccess({ tasks: [] }));
+            return of(loadTasksSuccess({ 
+              tasks: [],
+              total: 0,
+              page: 1,
+              totalPages: 0,
+              hasNext: false
+            }));
+          })
+        );
+      })
+    )
+  );
+
+  loadMyTasks$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(loadMyTasks),
+      switchMap((action) => {
+        const page = action.page || 1;
+        const limit = action.limit || 10;
+
+        return this.taskService.getMyTasks(page, limit).pipe(
+          tap(),
+          map(response => {
+            return loadMyTasksSuccess({ 
+              tasks: response.tasks,
+              total: response.total,
+              page: response.page,
+              totalPages: response.totalPages,
+              hasNext: response.hasNext
+            });
+          }),
+          catchError(error => {
+            console.error('TaskEffects: Failed to load my tasks:', error);
+            return of(loadMyTasksFailure({ error: error.error?.message || error.message || 'Failed to load my tasks' }));
           })
         );
       })
@@ -99,7 +131,7 @@ export class TaskEffects {
   deleteTask$ = createEffect(() =>
     this.actions$.pipe(
       ofType(deleteTask),
-      switchMap(({ taskId }) =>
+      switchMap(({ taskId}) =>
         this.taskService.deleteTask(taskId).pipe(
           map(() => deleteTaskSuccess({ taskId })),
           catchError(error => of(deleteTaskFailure({ error: error.error?.message || error.message || 'Failed to delete task' })))
@@ -123,57 +155,12 @@ export class TaskEffects {
     )
   );
 
-  // Bulk Update Tasks Effect
-  bulkUpdateTasks$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(bulkUpdateTasks),
-      switchMap(({ taskIds, updates }) =>
-        this.taskService.bulkUpdateTasks(taskIds, updates).pipe(
-          map(tasks => bulkUpdateTasksSuccess({ tasks })),
-          catchError(error => of(bulkUpdateTasksFailure({ error: error.error?.message || error.message || 'Failed to update tasks' })))
-        )
-      )
-    )
-  );
 
-  // Bulk Delete Tasks Effect
-  bulkDeleteTasks$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(bulkDeleteTasks),
-      switchMap(({ taskIds }) =>
-        this.taskService.bulkDeleteTasks(taskIds).pipe(
-          map(() => bulkDeleteTasksSuccess({ taskIds })),
-          catchError(error => of(bulkDeleteTasksFailure({ error: error.error?.message || error.message || 'Failed to delete tasks' })))
-        )
-      )
-    )
-  );
 
-  // Bulk Update Task Status Effect
-  bulkUpdateTaskStatus$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(bulkUpdateTaskStatus),
-      switchMap(({ taskIds, status }) =>
-        this.taskService.bulkUpdateTaskStatus(taskIds, status).pipe(
-          map(tasks => bulkUpdateTaskStatusSuccess({ tasks })),
-          catchError(error => of(bulkUpdateTaskStatusFailure({ error: error.error?.message || error.message || 'Failed to update task status' })))
-        )
-      )
-    )
-  );
 
-  // Load My Tasks Effect
-  loadMyTasks$ = createEffect(() =>
-    this.actions$.pipe(
-      ofType(loadMyTasks),
-      switchMap(() =>
-        this.taskService.getMyTasks().pipe(
-          map(tasks => loadMyTasksSuccess({ tasks })),
-          catchError(error => of(loadMyTasksFailure({ error: error.error?.message || error.message || 'Failed to load my tasks' })))
-        )
-      )
-    )
-  );
+
+
+
 
   // Load Task Statistics Effect
   loadTaskStatistics$ = createEffect(() =>

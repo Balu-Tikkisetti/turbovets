@@ -4,7 +4,7 @@ import { AppModule } from './app/app.module';
 import * as dotenv from 'dotenv';
 import { Client } from 'pg';
 import { ValidationPipe } from '@nestjs/common';
-import { databaseConfig, serverConfig } from './config/database.config';
+import { databaseConfig, serverConfig } from './config/app.config';
 // import rateLimit from 'express-rate-limit'; // Removed for development
 
 dotenv.config();

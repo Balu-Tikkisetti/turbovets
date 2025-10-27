@@ -78,7 +78,7 @@ export class DepartmentController {
   }
 
   @Get(':id')
-  @Roles(Role.Owner, Role.Admin, Role.Viewer)
+  @UseGuards(JwtAuthGuard)
   async findOne(@Param('id') id: string) {
     return this.departmentService.findDepartmentById(id);
   }
@@ -90,6 +90,7 @@ export class DepartmentController {
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard)
   @Roles(Role.Owner, Role.Admin)
   async update(
     @Param('id') id: string,
@@ -119,6 +120,7 @@ export class DepartmentController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
   @Roles(Role.Owner)
   async remove(@Param('id') id: string, @Req() req: Request) {
     const userId = req.user['userId'];

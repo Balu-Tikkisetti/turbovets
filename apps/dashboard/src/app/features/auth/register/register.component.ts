@@ -4,13 +4,6 @@ import { FormsModule, NgForm } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { RegisterUserDto } from "@turbovets/data";
 import { AuthService } from '../../../core/services/auth.service';
-
-interface HttpError {
-  status: number;
-  message?: string;
-}
-
-
 @Component({
   selector: 'app-register',
   standalone: true,
@@ -37,18 +30,13 @@ export class RegisterComponent {
           alert('Registration successful! You can now sign in with your credentials.');
           this.router.navigate(['auth/login']);
         },
-        error: (error: HttpError) => {
-          // Handle different types of registration errors
-          if (error?.status === 409) {
-            alert('Username or email already exists. Please choose different credentials.');
-          } else if (error?.status === 400) {
-            alert('Invalid registration data. Please check your information and try again.');
-          } else if (error?.status === 0) {
-            alert('Unable to connect to the server. Please check your internet connection and try again.');
-          } else if (error?.status >= 500) {
-            alert('Server error occurred. Please try again later or contact support if the problem persists.');
+        error: (error) => {
+          if (error.message.toLowerCase().includes('email')) {
+            alert('This email is already registered. Please use a different email or try logging in.');
+          } else if (error.message.toLowerCase().includes('username')) {
+            alert('This username is already taken. Please choose a different username.');
           } else {
-            alert('Registration failed. Please try again.');
+            alert( ` Registration Failed: ${error.message}`);
           }
         }
       });
@@ -76,6 +64,7 @@ export class RegisterComponent {
     const hasLower = /[a-z]/.test(password);
     const hasSpecial = /[#?!@$%^&*-]/.test(password);
     const hasMinLength = password.length >= 8;
+   
 
     return hasNumber && hasUpper && hasLower && hasSpecial && hasMinLength;
   }
@@ -91,6 +80,7 @@ export class RegisterComponent {
     if (!/[A-Z]/.test(password)) missing.push('an uppercase letter');
     if (!/[a-z]/.test(password)) missing.push('a lowercase letter');
     if (!/[#?!@$%^&*-]/.test(password)) missing.push('a special character');
+   
 
     return missing.length > 0 ? `Password must contain ${missing.join(', ')}` : '';
   }
